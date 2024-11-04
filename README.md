@@ -1,4 +1,4 @@
-# aro_ekta_gc_dorkar
+# Thiea App
 
 A new Flutter project.
 
