@@ -1,9 +1,14 @@
+import 'package:exif/exif.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
 
 import 'features/gridPainter.dart';
 import 'features/displayPictureScreen.dart';
+import 'package:image/image.dart' as img;
+
+import 'package:geolocator/geolocator.dart';
 
 class CameraScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -113,10 +118,34 @@ class _CameraScreenState extends State<CameraScreen> {
 
     try {
       await _initializeControllerFuture;
-      final image = await _controller!.takePicture();
-      setState(() {
-        capturedImages.insert(0, image);
-      });
+      final XFile file = await _controller!.takePicture();
+
+      // adding metadata to the image
+
+      final bytes = await file.readAsBytes();
+      final image = img.decodeImage(bytes);
+
+      if(image == null){
+        debugPrint('Failed to decode image');
+        return;
+      }
+
+      final exifData = await readExifFromBytes(bytes);
+
+      if(exifData == null){
+        debugPrint('Failed to read exif data');
+        return;
+      }
+
+      // exifData['DateTime'] = DateTime.now().toString() as IfdTag;
+
+      // exifData['Location'] = await Geolocator.getCurrentPosition().then((value) => value.toString()) as IfdTag;
+
+      // exifData['Location'] = IfdTag(await Geolocator.getCurrentPosition().then((value) => value.toString()));
+
+      print(exifData); // checking
+
+      
       _showCaptureConfirmation();
     } catch (e) {
       print('Error taking picture: $e');
@@ -194,6 +223,12 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   Widget build(BuildContext context) {
+
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    systemNavigationBarColor: Colors.black,
+    systemNavigationBarIconBrightness: Brightness.light,
+  ));
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -286,16 +321,20 @@ class _CameraScreenState extends State<CameraScreen> {
                     onPressed: (){
                       Navigator.pushNamed(context, '/galleryPreview');
                     },
+                    color: Colors.white,
                   ),
 
                   IconButton(
                     icon: Icon(Icons.camera_alt), // camera button
                     onPressed: _takePicture,
+                    color: Colors.white,
+                    iconSize: 50,
                   ), // camera button
 
                   IconButton( // camera switch button
                     icon: Icon(Icons.cameraswitch_outlined), 
                     onPressed: _switchCamera,
+                    color: Colors.white,
                   ),
                 ],
               ),
