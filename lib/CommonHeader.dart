@@ -8,6 +8,8 @@ export './Authentication/Login.dart';
 export './Authentication/SignUp.dart';
 export './Authentication/Wrapper_for_auth.dart';
 
+export 'screens/gallery_preview/galleryPreview.dart';
+
 
 export 'HomeScreen/appDrawer.dart';
 

@@ -7,13 +7,13 @@ import 'features/displayPictureScreen.dart';
 
 class CameraScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
- 
+
   const CameraScreen({Key? key, required this.cameras}) : super(key: key);
- 
+
   @override
   _CameraScreenState createState() => _CameraScreenState();
 }
- 
+
 class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
   late Future<void> _initializeControllerFuture;
@@ -23,13 +23,13 @@ class _CameraScreenState extends State<CameraScreen> {
   bool isGridVisible = false;
   bool isFocusing = false;
   Offset? focusPoint;
- 
+
   @override
   void initState() {
     super.initState();
     _initializeCamera(selectedCamera);
   }
- 
+
   Future<void> _initializeCamera(int cameraIndex) async {
     try {
       final controller = CameraController(
@@ -37,10 +37,10 @@ class _CameraScreenState extends State<CameraScreen> {
         ResolutionPreset.high,
         enableAudio: true,
       );
- 
+
       _initializeControllerFuture = controller.initialize();
       await _initializeControllerFuture;
- 
+
       if (mounted) {
         setState(() {
           _controller = controller;
@@ -59,7 +59,7 @@ class _CameraScreenState extends State<CameraScreen> {
       }
     }
   }
- 
+
   Future<void> _switchCamera() async {
     if (widget.cameras.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -70,22 +70,21 @@ class _CameraScreenState extends State<CameraScreen> {
       );
       return;
     }
- 
+
     if (_controller != null) {
       await _controller!.dispose();
     }
- 
+
     selectedCamera = (selectedCamera + 1) % widget.cameras.length;
     await _initializeCamera(selectedCamera);
   }
- 
+
   Future<void> _toggleFlash() async {
     if (_controller == null) return;
- 
+
     try {
       final FlashMode nextMode = FlashMode.values[
-      (FlashMode.values.indexOf(flashMode) + 1) % FlashMode.values.length
-      ];
+          (FlashMode.values.indexOf(flashMode) + 1) % FlashMode.values.length];
       await _controller!.setFlashMode(nextMode);
       setState(() {
         flashMode = nextMode;
@@ -100,7 +99,7 @@ class _CameraScreenState extends State<CameraScreen> {
       );
     }
   }
- 
+
   Future<void> _takePicture() async {
     if (_controller == null || !_controller!.value.isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,7 +110,7 @@ class _CameraScreenState extends State<CameraScreen> {
       );
       return;
     }
- 
+
     try {
       await _initializeControllerFuture;
       final image = await _controller!.takePicture();
@@ -129,7 +128,7 @@ class _CameraScreenState extends State<CameraScreen> {
       );
     }
   }
- 
+
   void _showCaptureConfirmation() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -139,20 +138,20 @@ class _CameraScreenState extends State<CameraScreen> {
       ),
     );
   }
- 
+
   void _handleFocusTap(TapDownDetails details) {
     if (_controller == null || !_controller!.value.isInitialized) return;
- 
+
     final Size screenSize = MediaQuery.of(context).size;
     final Offset tapPosition = details.localPosition;
     final double x = tapPosition.dx / screenSize.width;
     final double y = tapPosition.dy / screenSize.height;
- 
+
     setState(() {
       focusPoint = tapPosition;
       isFocusing = true;
     });
- 
+
     _controller!.setFocusPoint(Offset(x, y));
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
@@ -163,16 +162,16 @@ class _CameraScreenState extends State<CameraScreen> {
       }
     });
   }
- 
+
   Future<void> _deleteImage(int index) async {
     try {
       final XFile image = capturedImages[index];
       final File imageFile = File(image.path);
- 
+
       if (await imageFile.exists()) {
         await imageFile.delete();
       }
- 
+
       setState(() {
         capturedImages.removeAt(index);
       });
@@ -186,13 +185,13 @@ class _CameraScreenState extends State<CameraScreen> {
       );
     }
   }
- 
+
   @override
   void dispose() {
     _controller?.dispose();
     super.dispose();
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -203,25 +202,31 @@ class _CameraScreenState extends State<CameraScreen> {
             // Camera Controls Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
+              child: Row( // topbar optoins
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
                     icon: const Icon(Icons.grid_on),
                     color: isGridVisible ? Colors.yellow : Colors.white,
-                    onPressed: () => setState(() => isGridVisible = !isGridVisible),
+                    onPressed: () =>
+                        setState(() => isGridVisible = !isGridVisible),
                   ),
                   IconButton(
                     icon: Icon(_getFlashIcon()),
+                    color: flashMode == FlashMode.off
+                        ? Colors.white
+                        : Colors.yellow,
                     onPressed: _toggleFlash,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.cameraswitch),
-                    onPressed: _switchCamera,
-                  ),
+                  // IconButton(
+                  //   icon: const Icon(Icons.cameraswitch_outlined), 
+                  //   onPressed: _switchCamera,
+                  // ),
                 ],
               ),
             ),
+
+            
             // Camera Preview
             Expanded(
               flex: 3,
@@ -229,8 +234,10 @@ class _CameraScreenState extends State<CameraScreen> {
                 future: _initializeControllerFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
-                    if (_controller == null || !_controller!.value.isInitialized) {
-                      return const Center(child: Text('Camera not initialized'));
+                    if (_controller == null ||
+                        !_controller!.value.isInitialized) {
+                      return const Center(
+                          child: Text('Camera not initialized'));
                     }
                     return Stack(
                       fit: StackFit.expand,
@@ -240,22 +247,23 @@ class _CameraScreenState extends State<CameraScreen> {
                           child: CameraPreview(_controller!),
                         ),
                         if (isGridVisible) _buildGrid(),
-                        if (focusPoint != null && isFocusing) _buildFocusPoint(),
-                        Positioned(
-                          bottom: 20,
-                          left: 0,
-                          right: 0,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              FloatingActionButton(
-                                heroTag: 'capture',
-                                onPressed: _takePicture,
-                                child: const Icon(Icons.camera, size: 36),
-                              ),
-                            ],
-                          ),
-                        ),
+                        if (focusPoint != null && isFocusing)
+                          _buildFocusPoint(),
+                        // Positioned(
+                        //   bottom: 20,
+                        //   left: 0,
+                        //   right: 0,
+                        //   child: Row(
+                        //     mainAxisAlignment: MainAxisAlignment.center,
+                        //     children: [
+                        //       FloatingActionButton(
+                        //         heroTag: 'capture',
+                        //         onPressed: _takePicture,
+                        //         child: const Icon(Icons.camera, size: 36),
+                        //       ),
+                        //     ],
+                        //   ),
+                        // ),
                       ],
                     );
                   } else {
@@ -264,63 +272,92 @@ class _CameraScreenState extends State<CameraScreen> {
                 },
               ),
             ),
-            // Gallery
-            Container(
-              height: 120,
-              color: Colors.black87,
-              child: capturedImages.isEmpty
-                  ? const Center(
-                child: Text(
-                  'No photos yet',
-                  style: TextStyle(color: Colors.white54),
-                ),
-              )
-                  : ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: capturedImages.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.all(4.0),
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DisplayPictureScreen(
-                              imagePath: capturedImages[index].path,
-                              onDelete: () => _deleteImage(index),
-                            ),
-                          ),
-                        );
-                      },
-                      child: Hero(
-                        tag: capturedImages[index].path,
-                        child: Container(
-                          width: 100,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.white24),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              File(capturedImages[index].path),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+
+            // Bottom bar
+            AnimatedContainer(duration: const Duration(milliseconds: 300),
+              height: 100,
+
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+
+                children: [
+                  IconButton( // gallery button
+                    icon: Icon(Icons.image),
+                    onPressed: (){
+                      Navigator.pushNamed(context, '/galleryPreview');
+                    },
+                  ),
+
+                  IconButton(
+                    icon: Icon(Icons.camera_alt), // camera button
+                    onPressed: _takePicture,
+                  ), // camera button
+
+                  IconButton( // camera switch button
+                    icon: Icon(Icons.cameraswitch_outlined), 
+                    onPressed: _switchCamera,
+                  ),
+                ],
               ),
             ),
+
+            // // Gallery
+            // Container(
+            //   height: 120,
+            //   color: Colors.black87,
+            //   child: capturedImages.isEmpty
+            //       ? const Center(
+            //           child: Text(
+            //             'No photos yet',
+            //             style: TextStyle(color: Colors.white54),
+            //           ),
+            //         )
+            //       : ListView.builder(
+            //           scrollDirection: Axis.horizontal,
+            //           itemCount: capturedImages.length,
+            //           itemBuilder: (context, index) {
+            //             return Padding(
+            //               padding: const EdgeInsets.all(4.0),
+            //               child: GestureDetector(
+            //                 onTap: () {
+            //                   Navigator.push(
+            //                     context,
+            //                     MaterialPageRoute(
+            //                       builder: (context) => DisplayPictureScreen(
+            //                         imagePath: capturedImages[index].path,
+            //                         onDelete: () => _deleteImage(index),
+            //                       ),
+            //                     ),
+            //                   );
+            //                 },
+            //                 child: Hero(
+            //                   tag: capturedImages[index].path,
+            //                   child: Container(
+            //                     width: 100,
+            //                     decoration: BoxDecoration(
+            //                       border: Border.all(color: Colors.white24),
+            //                       borderRadius: BorderRadius.circular(8),
+            //                     ),
+            //                     child: ClipRRect(
+            //                       borderRadius: BorderRadius.circular(8),
+            //                       child: Image.file(
+            //                         File(capturedImages[index].path),
+            //                         fit: BoxFit.cover,
+            //                       ),
+            //                     ),
+            //                   ),
+            //                 ),
+            //               ),
+            //             );
+            //           },
+            //         ),
+            // ),
           ],
         ),
       ),
     );
   }
- 
+
   Widget _buildGrid() {
     return IgnorePointer(
       child: CustomPaint(
@@ -329,7 +366,7 @@ class _CameraScreenState extends State<CameraScreen> {
       ),
     );
   }
- 
+
   Widget _buildFocusPoint() {
     return Positioned(
       left: focusPoint!.dx - 20,
@@ -344,7 +381,7 @@ class _CameraScreenState extends State<CameraScreen> {
       ),
     );
   }
- 
+
   IconData _getFlashIcon() {
     switch (flashMode) {
       case FlashMode.off:

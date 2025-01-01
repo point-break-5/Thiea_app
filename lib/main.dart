@@ -56,6 +56,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       routes: {
+        '/cameraScreen': (context) => CameraScreen(cameras: cameras),
+        '/galleryPreview': (context) => const GalleryPreview(),
         '/homeScreen': (context) => const HomeScreen(),
         '/homeScreen/aboutUs': (context) => AboutUs(),
         '/authWrapper': (context) => const AuthWrapper(),
