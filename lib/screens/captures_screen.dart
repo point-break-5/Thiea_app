@@ -6,7 +6,7 @@ import 'package:flutter_camera_demo_upgraded/screens/preview_screen.dart';
 class CapturesScreen extends StatelessWidget {
   final List<File> imageFileList;
 
-  const CapturesScreen({required this.imageFileList});
+  const CapturesScreen({super.key, required this.imageFileList});
 
   @override
   Widget build(BuildContext context) {

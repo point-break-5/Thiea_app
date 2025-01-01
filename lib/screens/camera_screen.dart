@@ -12,6 +12,8 @@ import 'package:video_player/video_player.dart';
 import '../main.dart';
 
 class CameraScreen extends StatefulWidget {
+  const CameraScreen({super.key});
+
   @override
   _CameraScreenState createState() => _CameraScreenState();
 }
@@ -69,14 +71,14 @@ class _CameraScreenState extends State<CameraScreen>
     allFileList.clear();
     List<Map<int, dynamic>> fileNames = [];
 
-    fileList.forEach((file) {
+    for (var file in fileList) {
       if (file.path.contains('.jpg') || file.path.contains('.mp4')) {
         allFileList.add(File(file.path));
 
         String name = file.path.split('/').last.split('.').first;
         fileNames.add({0: int.parse(name), 1: file.path.split('/').last});
       }
-    });
+    }
 
     if (fileNames.isNotEmpty) {
       final recentFile =
@@ -355,6 +357,7 @@ class _CameraScreenState extends State<CameraScreen>
                                             for (ResolutionPreset preset
                                                 in resolutionPresets)
                                               DropdownMenuItem(
+                                                value: preset,
                                                 child: Text(
                                                   preset
                                                       .toString()
@@ -363,7 +366,6 @@ class _CameraScreenState extends State<CameraScreen>
                                                   style: TextStyle(
                                                       color: Colors.white),
                                                 ),
-                                                value: preset,
                                               )
                                           ],
                                           onChanged: (value) {
@@ -392,9 +394,8 @@ class _CameraScreenState extends State<CameraScreen>
                                       child: Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: Text(
-                                          _currentExposureOffset
-                                                  .toStringAsFixed(1) +
-                                              'x',
+                                          '${_currentExposureOffset
+                                                  .toStringAsFixed(1)}x',
                                           style: TextStyle(color: Colors.black),
                                         ),
                                       ),
@@ -403,7 +404,7 @@ class _CameraScreenState extends State<CameraScreen>
                                   Expanded(
                                     child: RotatedBox(
                                       quarterTurns: 3,
-                                      child: Container(
+                                      child: SizedBox(
                                         height: 30,
                                         child: Slider(
                                           value: _currentExposureOffset,
@@ -452,9 +453,8 @@ class _CameraScreenState extends State<CameraScreen>
                                           child: Padding(
                                             padding: const EdgeInsets.all(8.0),
                                             child: Text(
-                                              _currentZoomLevel
-                                                      .toStringAsFixed(1) +
-                                                  'x',
+                                              '${_currentZoomLevel
+                                                      .toStringAsFixed(1)}x',
                                               style: TextStyle(
                                                   color: Colors.white),
                                             ),

@@ -7,7 +7,7 @@ class PreviewScreen extends StatelessWidget {
   final File imageFile;
   final List<File> fileList;
 
-  const PreviewScreen({
+  const PreviewScreen({super.key, 
     required this.imageFile,
     required this.fileList,
   });
@@ -31,11 +31,11 @@ class PreviewScreen extends StatelessWidget {
                   ),
                 );
               },
-              child: Text('Go to all captures'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.black,
                 backgroundColor: Colors.white,
               ),
+              child: Text('Go to all captures'),
             ),
           ),
           Expanded(
