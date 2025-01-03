@@ -77,6 +77,7 @@ class _GalleryPreviewState extends State<GalleryPreview> {
 
   @override
   void dispose() {
+    _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
     super.dispose();
   }
