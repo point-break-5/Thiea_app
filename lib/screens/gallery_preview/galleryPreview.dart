@@ -54,27 +54,96 @@ class GalleryPreview extends StatefulWidget {
 
 class _GalleryPreviewState extends State<GalleryPreview> {
   List<AssetEntity> assets = [];
+  late ScrollController _scrollController;
+
+  bool _hasMore = true;
+  bool _isLoading = false;
+  int _currentPage = 0;
+  static const int _pageSize = 50;
+  AssetPathEntity? _album;
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+      _loadGallery();
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_scrollListener);
     _loadGallery();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // Load the whole gallery
   Future<void> _loadGallery() async {
-    final permitted = await PhotoManager.requestPermissionExtend();
-    if (permitted.isAuth) {
-      final albums = await PhotoManager.getAssetPathList();
-      if (albums.isNotEmpty) {
-        final recentAlbum = albums.first;
-        final recentAssets =
-            await recentAlbum.getAssetListPaged(page: 0, size: 500);
+    if (!_hasMore || _isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final permitted = await PhotoManager.requestPermissionExtend();
+      if (!permitted.isAuth) {
         setState(() {
-          assets = recentAssets;
+          _isLoading = false;
+          _hasMore = false;
         });
+        return;
       }
+
+      if (_album == null) {
+        final albums = await PhotoManager.getAssetPathList();
+        if (albums.isEmpty) {
+          setState(() {
+            _isLoading = false;
+            _hasMore = false;
+          });
+          return;
+        }
+        _album = albums.first;
+      }
+
+      final recentAssets = await _album!.getAssetListPaged(
+        page: _currentPage,
+        size: _pageSize,
+      );
+
+      setState(() {
+        assets.addAll(recentAssets);
+        _currentPage++;
+        _isLoading = false;
+        _hasMore = recentAssets.length >= _pageSize;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _hasMore = false;
+      });
     }
   }
+
+  // Future<void> _loadGallery() async {
+  //   final permitted = await PhotoManager.requestPermissionExtend();
+  //   if (permitted.isAuth) {
+  //     final albums = await PhotoManager.getAssetPathList();
+  //     if (albums.isNotEmpty) {
+  //       final recentAlbum = albums.first;
+  //       final recentAssets =
+  //           await recentAlbum.getAssetListPaged(page: 0, size: 500);
+  //       setState(() {
+  //         assets = recentAssets;
+  //       });
+  //     }
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -104,64 +173,80 @@ class _GalleryPreviewState extends State<GalleryPreview> {
 
       body: Container(
         color: Colors.grey[900],
-        child: ListView.builder(
-          itemCount: groups.length,
-          itemBuilder: (context, groupIndex) {
-            final group = groups[groupIndex];
-            return Container(
-              margin: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      _getFormattedDate(group.date),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 2,
-                      mainAxisSpacing: 2,
-                    ),
-                    itemCount: group.assets.length,
-                    itemBuilder: (context, index) {
-                      final asset = group.assets[index];
-                      return Container(
-                        padding: const EdgeInsets.all(3),
-                        child: FutureBuilder<Uint8List?>(
-                          future: asset.thumbnailData,
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                    ConnectionState.done &&
-                                snapshot.hasData) {
-                              return ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.memory(
-                                  snapshot.data!,
-                                  fit: BoxFit.cover,
-                                ),
-                              );
-                            }
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          },
+        child: Stack(
+          children: [
+            ListView.builder(
+              controller: _scrollController,
+              itemCount: groups.length,
+              itemBuilder: (context, groupIndex) {
+                final group = groups[groupIndex];
+                return Container(
+                  margin: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          _getFormattedDate(group.date),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      );
-                    },
+                      ),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 2,
+                          mainAxisSpacing: 2,
+                        ),
+                        itemCount: group.assets.length,
+                        itemBuilder: (context, index) {
+                          final asset = group.assets[index];
+                          return Container(
+                            padding: const EdgeInsets.all(3),
+                            child: FutureBuilder<Uint8List?>(
+                              future: asset.thumbnailData,
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                        ConnectionState.done &&
+                                    snapshot.hasData) {
+                                  return ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.memory(
+                                      snapshot.data!,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  );
+                                }
+                                return const Center(
+                                    child: CircularProgressIndicator());
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
+                );
+              },
+            ),
+            if (_isLoading)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  alignment: Alignment.center,
+                  child: const CircularProgressIndicator(),
+                ),
               ),
-            );
-          },
+          ],
         ),
       ),
 
@@ -198,7 +283,7 @@ class _GalleryPreviewState extends State<GalleryPreview> {
       //       ),
       bottomNavigationBar: BottomAppBar(
           color: Color.fromARGB(150, 0, 0, 0),
-          height: MediaQuery.of(context).size.height * 0.08,
+          height: MediaQuery.of(context).size.height * 0.07,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
