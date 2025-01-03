@@ -44,6 +44,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   photo_manager: ^3.6.3
   exif: ^3.3.0
+  gal: ^2.3.1
 
 dev_dependencies:
   flutter_test:

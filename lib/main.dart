@@ -66,7 +66,7 @@ class MyApp extends StatelessWidget {
       },
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.grey,
         useMaterial3: true,
       ),
       home: CameraScreen(cameras: cameras),

@@ -9,6 +9,7 @@ import 'features/displayPictureScreen.dart';
 import 'package:image/image.dart' as img;
 
 import 'package:geolocator/geolocator.dart';
+import 'package:gal/gal.dart';
 
 class CameraScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -39,7 +40,7 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       final controller = CameraController(
         widget.cameras[cameraIndex],
-        ResolutionPreset.high,
+        ResolutionPreset.max, // Set Resolution
         enableAudio: true,
       );
 
@@ -132,10 +133,29 @@ class _CameraScreenState extends State<CameraScreen> {
 
       final exifData = await readExifFromBytes(bytes);
 
-      if(exifData == null){
-        debugPrint('Failed to read exif data');
-        return;
+      // print(file.saveTo('/storage/emulated/0/DCIM/Camera/')); // checking
+
+
+      // saving to gallery
+
+      try{
+        await Gal.putImage(
+          file.path,
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Image saved to ${file.path}'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        print('Image saved to gallery');
+      } on Exception catch(e){
+        print('Error saving image to gallery: $e');
       }
+
+      // print(result); // checking
 
       // exifData['DateTime'] = DateTime.now().toString() as IfdTag;
 

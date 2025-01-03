@@ -24,7 +24,8 @@ class _GalleryPreviewState extends State<GalleryPreview> {
       final albums = await PhotoManager.getAssetPathList();
       if (albums.isNotEmpty) {
         final recentAlbum = albums.first;
-        final recentAssets = await recentAlbum.getAssetListPaged(page: 0, size: 100);
+        final recentAssets =
+            await recentAlbum.getAssetListPaged(page: 0, size: 500);
         setState(() {
           assets = recentAssets;
         });
@@ -35,7 +36,12 @@ class _GalleryPreviewState extends State<GalleryPreview> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gallery Preview')),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text('Thiea Gallery'),
+        backgroundColor: Color(0x44000000),
+        centerTitle: true,
+      ),
       body: assets.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : GridView.builder(
@@ -43,15 +49,29 @@ class _GalleryPreviewState extends State<GalleryPreview> {
                   crossAxisCount: 3),
               itemCount: assets.length,
               itemBuilder: (context, index) {
-                return FutureBuilder<Uint8List?>(
-                  future: assets[index].thumbnailData,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.done &&
-                        snapshot.hasData) {
-                      return Image.memory(snapshot.data!, fit: BoxFit.cover);
-                    }
-                    return const Center(child: CircularProgressIndicator());
-                  },
+                return Card(
+                  child: FutureBuilder<Uint8List?>(
+                    future: assets[index].thumbnailData,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.done &&
+                          snapshot.hasData) {
+                        return Container(
+                          child: Image.memory(
+                            snapshot.data!,
+                            fit: BoxFit.cover,
+                          ),
+                          // decoration: BoxDecoration(
+                          //   image: DecorationImage(
+                          //       image: MemoryImage(
+                          //     snapshot.data!,
+                          //     // scale:
+                          //   )),
+                          // ),
+                        );
+                      }
+                      return const Center(child: CircularProgressIndicator());
+                    },
+                  ),
                 );
               },
             ),
