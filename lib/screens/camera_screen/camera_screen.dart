@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 import 'features/gridPainter.dart';
-import 'features/displayPictureScreen.dart';
+import 'features/photoViewer.dart';
 import 'package:image/image.dart' as img;
 
 import 'package:geolocator/geolocator.dart';

@@ -1,10 +1,18 @@
 import 'package:camera/camera.dart';
+import 'package:video_player/video_player.dart';
+import 'package:video_player_platform_interface/video_player_platform_interface.dart';
+import 'package:video_player_android/video_player_android.dart';
 
 import './CommonHeader.dart';
 
 import 'screens/camera_screen/camera_screen.dart';
 
 Future<void> main() async {
+
+  WidgetsFlutterBinding.ensureInitialized();
+  // VideoPlayerPlatform.instance = VideoPlayerAndroid();
+
+
   try {
     WidgetsFlutterBinding.ensureInitialized();
     final cameras = await availableCameras();

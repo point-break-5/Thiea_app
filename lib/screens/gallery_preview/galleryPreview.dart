@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'dart:typed_data';
 import 'package:intl/intl.dart';
+import 'package:thiea_app/screens/camera_screen/features/photoViewer.dart';
 
 class ImageGroup {
   final DateTime date;
@@ -82,7 +83,7 @@ class _GalleryPreviewState extends State<GalleryPreview> {
     super.dispose();
   }
 
-  // Load the whole gallery
+  // Load the whole gallery (50 at a time)
   Future<void> _loadGallery() async {
     if (!_hasMore || _isLoading) return;
 
@@ -160,7 +161,7 @@ class _GalleryPreviewState extends State<GalleryPreview> {
           'Thiea Gallery',
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: Color(0x44000000),
+        backgroundColor: const Color(0x44000000),
         centerTitle: true,
         actions: [
           IconButton(
@@ -210,23 +211,37 @@ class _GalleryPreviewState extends State<GalleryPreview> {
                           final asset = group.assets[index];
                           return Container(
                             padding: const EdgeInsets.all(3),
-                            child: FutureBuilder<Uint8List?>(
-                              future: asset.thumbnailData,
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                        ConnectionState.done &&
-                                    snapshot.hasData) {
-                                  return ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.memory(
-                                      snapshot.data!,
-                                      fit: BoxFit.cover,
+                            child: GestureDetector(
+                              onTap: () {
+                                // need to implement photo viewer
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => PhotoViewer(
+                                      assets: group.assets,
+                                      initialIndex: index,
                                     ),
-                                  );
-                                }
-                                return const Center(
-                                    child: CircularProgressIndicator());
+                                  ),
+                                );
                               },
+                              child: FutureBuilder<Uint8List?>(
+                                future: asset.thumbnailData,
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                          ConnectionState.done &&
+                                      snapshot.hasData) {
+                                    return ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Image.memory(
+                                        snapshot.data!,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    );
+                                  }
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                },
+                              ),
                             ),
                           );
                         },
@@ -283,7 +298,7 @@ class _GalleryPreviewState extends State<GalleryPreview> {
       //         ),
       //       ),
       bottomNavigationBar: BottomAppBar(
-          color: Color.fromARGB(150, 0, 0, 0),
+          color: const Color.fromARGB(150, 0, 0, 0),
           height: MediaQuery.of(context).size.height * 0.07,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
