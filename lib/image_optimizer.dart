@@ -1,4 +1,3 @@
-
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path/path.dart' as path;
@@ -27,7 +26,8 @@ class ImageOptimizer {
 
   Future<File> generateThumbnail(XFile image) async {
     final thumbnailDir = await _getThumbnailDir();
-    final thumbnailPath = '${thumbnailDir.path}/${path.basename(image.path)}_thumb.jpg';
+    final thumbnailPath =
+        '${thumbnailDir.path}/${path.basename(image.path)}_thumb.jpg';
     final thumbnailFile = File(thumbnailPath);
 
     if (await thumbnailFile.exists()) {
@@ -66,7 +66,8 @@ class ImageOptimizer {
     return thumbnailDir;
   }
 
-  Future<Uint8List?> loadOptimizedImage(XFile image, {bool useCache = true}) async {
+  Future<Uint8List?> loadOptimizedImage(XFile image,
+      {bool useCache = true}) async {
     if (useCache && _memoryCache.containsKey(image.path)) {
       return _memoryCache[image.path];
     }
@@ -84,6 +85,38 @@ class ImageOptimizer {
       print('Error loading optimized image: $e');
       return null;
     }
+  }
+
+  Future<String> compress(String imagePath) async {
+    try {
+      final compressedDir = await _getCompressedDir();
+      final compressedPath =
+          '${compressedDir.path}/${path.basename(imagePath)}_compressed.jpg';
+
+      final result = await FlutterImageCompress.compressAndGetFile(
+        imagePath,
+        compressedPath,
+        quality: 80, // You can adjust the quality as needed
+      );
+
+      if (result == null) {
+        throw Exception("Compression failed");
+      }
+
+      return result.path;
+    } catch (e) {
+      print('Error compressing image $imagePath: $e');
+      rethrow;
+    }
+  }
+
+  Future<Directory> _getCompressedDir() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final compressedDir = Directory('${appDir.path}/compressed');
+    if (!await compressedDir.exists()) {
+      await compressedDir.create(recursive: true);
+    }
+    return compressedDir;
   }
 
   void _addToMemoryCache(String key, Uint8List value) {

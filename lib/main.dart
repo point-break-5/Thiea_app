@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:untitled/screens/camera_screen.dart';
 
-
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +11,7 @@ Future<void> main() async {
       runApp(
         MaterialApp(
           theme: ThemeData.dark(),
+          debugShowCheckedModeBanner: false, // Disable debug banner
           home: const Scaffold(
             body: Center(
               child: Text('No cameras found on this device'),
@@ -25,6 +25,7 @@ Future<void> main() async {
     runApp(
       MaterialApp(
         theme: ThemeData.dark(),
+        debugShowCheckedModeBanner: false, // Disable debug banner
         home: CameraApp(cameras: cameras),
       ),
     );
@@ -33,6 +34,7 @@ Future<void> main() async {
     runApp(
       MaterialApp(
         theme: ThemeData.dark(),
+        debugShowCheckedModeBanner: false, // Disable debug banner
         home: Scaffold(
           body: Center(
             child: Text('Error initializing camera: $e'),

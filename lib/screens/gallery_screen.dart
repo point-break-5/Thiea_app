@@ -17,26 +17,28 @@ import 'package:collection/collection.dart';
 import 'package:untitled/screens/image_preview.dart';
 import 'package:exif/exif.dart';
 import 'package:untitled/image_optimizer.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 class GalleryScreen extends StatefulWidget {
   final List<XFile> images;
   final Function(int) onDelete;
   final Function(String) onShare; // Add this
-  final Function(String) onInfo;  // Add this
+  final Function(String) onInfo; // Add this
 
   const GalleryScreen({
     Key? key,
     required this.images,
     required this.onDelete,
     required this.onShare, // Add this
-    required this.onInfo,  // Add this
+    required this.onInfo, // Add this
   }) : super(key: key);
 
   @override
   State<GalleryScreen> createState() => _GalleryScreenState();
 }
 
-class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProviderStateMixin {
+class _GalleryScreenState extends State<GalleryScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late List<ImageWithDate> filteredImages;
   bool isSearching = false;
@@ -62,20 +64,23 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
   String sortBy = 'date';
   bool sortAscending = false;
   final imageOptimizer = ImageOptimizer();
+  final GalleryManager _galleryManager = GalleryManager();
 
   final List<String> viewTabs = ['Photos', 'Albums', 'People', 'Places'];
 
   Future<void> _loadMetadata() async {
     try {
       final directory = await getExternalStorageDirectory();
-      final String metadataPath = '${directory!.path}/MyCameraApp/metadata.json';
+      final String metadataPath =
+          '${directory!.path}/MyCameraApp/metadata.json';
       final file = File(metadataPath);
 
       if (await file.exists()) {
         final String contents = await file.readAsString();
         final List<dynamic> jsonList = json.decode(contents);
         setState(() {
-          _allPhotos = jsonList.map((json) => PhotoMetadata.fromJson(json)).toList();
+          _allPhotos =
+              jsonList.map((json) => PhotoMetadata.fromJson(json)).toList();
         });
         print('Metadata loaded: ${_allPhotos.length} photos'); // Debug
       }
@@ -98,7 +103,24 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
 
     // Load initial data
     _loadData();
+    _initializeGallery();
   }
+
+  //Gallery Access Start
+  Future<void> _initializeGallery() async {
+    try {
+      final assets = await _galleryManager.fetchGalleryImages();
+      final xFiles = await Future.wait(assets.map(_galleryManager.convertAssetToXFile));
+
+      setState(() {
+        widget.images.addAll(xFiles); // Populate images
+        _initializeImagesWithRetry(); // Refresh display
+      });
+    } catch (e) {
+      print("Error initializing gallery: $e");
+    }
+  }
+  //Gallery Access End
 
   Future<void> _loadData() async {
     await _loadMetadata();
@@ -171,35 +193,45 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
   Future<void> _initializeImagesWithRetry([int retryCount = 3]) async {
     try {
       List<ImageWithDate> imagesWithDates = [];
+      List<Future<ImageWithDate>> imageLoadingTasks = [];
 
-      // Load images with error handling
+      // Create async tasks for image loading
       for (var file in widget.images) {
-        try {
-          final fileExists = await File(file.path).exists();
-          if (fileExists) {
-            final fileDate = await File(file.path).lastModified();
-            imagesWithDates.add(ImageWithDate(file: file, date: fileDate));
-          }
-        } catch (e) {
-          print('Error loading image ${file.path}: $e');
-        }
+        imageLoadingTasks.add(_loadImageWithMetadata(file));
       }
+
+      // Await and collect results
+      imagesWithDates = await Future.wait(imageLoadingTasks);
 
       if (mounted) {
         setState(() {
           _sortImagesByCurrentSettings(imagesWithDates);
           _categorizeImages(imagesWithDates);
         });
-
         await _loadMoreImages();
       }
     } catch (e) {
       print('Error initializing images: $e');
       if (retryCount > 0) {
-        // Wait before retrying
         await Future.delayed(const Duration(seconds: 1));
         await _initializeImagesWithRetry(retryCount - 1);
       }
+    }
+  }
+
+  Future<ImageWithDate> _loadImageWithMetadata(XFile file) async {
+    try {
+      final fileExists = await File(file.path).exists();
+      if (!fileExists) throw Exception("File not found");
+
+      final fileDate = await File(file.path).lastModified();
+      final compressedPath =
+          await imageOptimizer.compress(file.path); // Compress for thumbnails
+
+      return ImageWithDate(file: XFile(compressedPath), date: fileDate);
+    } catch (e) {
+      print('Error loading image ${file.path}: $e');
+      throw e;
     }
   }
 
@@ -218,7 +250,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
 
         // Find existing metadata for the image
         final existingMetadata = _allPhotos.firstWhere(
-              (photo) => photo.path == image.path,
+          (photo) => photo.path == image.path,
           orElse: () => PhotoMetadata(
             path: image.path,
             dateTime: File(image.path).lastModifiedSync(),
@@ -241,7 +273,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
 
       // Save the updated metadata
       final directory = await getExternalStorageDirectory();
-      final String metadataPath = '${directory!.path}/MyCameraApp/metadata.json';
+      final String metadataPath =
+          '${directory!.path}/MyCameraApp/metadata.json';
       final file = File(metadataPath);
 
       await file.writeAsString(
@@ -259,7 +292,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
       clusters.forEach((clusterId, faceIds) {
         print('$clusterId: ${faceIds.length} faces');
         faceIds.forEach((faceId) {
-          final face = FaceRecognitionManager.allFaces[faceId]; // Updated reference
+          final face =
+              FaceRecognitionManager.allFaces[faceId]; // Updated reference
           if (face != null) {
             print('  - Face $faceId (Tracking ID: ${face.trackingId})');
           } else {
@@ -267,7 +301,6 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
           }
         });
       });
-
     } catch (e) {
       print('Error processing faces: $e');
       setState(() {
@@ -303,7 +336,9 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
         images.sort((a, b) {
           int sizeA = File(a.file.path).lengthSync();
           int sizeB = File(b.file.path).lengthSync();
-          return sortAscending ? sizeA.compareTo(sizeB) : sizeB.compareTo(sizeA);
+          return sortAscending
+              ? sizeA.compareTo(sizeB)
+              : sizeB.compareTo(sizeA);
         });
         break;
     }
@@ -312,7 +347,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
   Future<void> _deleteMetadata(String imagePath) async {
     try {
       final directory = await getExternalStorageDirectory();
-      final String metadataPath = '${directory!.path}/MyCameraApp/metadata.json';
+      final String metadataPath =
+          '${directory!.path}/MyCameraApp/metadata.json';
       final file = File(metadataPath);
 
       if (await file.exists()) {
@@ -320,9 +356,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
         final List<dynamic> jsonList = json.decode(contents);
 
         // Remove metadata for the deleted image
-        final updatedMetadata = jsonList.where((item) =>
-        item['path'] != imagePath
-        ).toList();
+        final updatedMetadata =
+            jsonList.where((item) => item['path'] != imagePath).toList();
 
         // Update metadata file
         await file.writeAsString(json.encode(updatedMetadata));
@@ -347,7 +382,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
       final file = File(image.file.path);
       if (await file.exists()) {
         // Find the index in the original images list
-        final index = widget.images.indexWhere((img) => img.path == image.file.path);
+        final index =
+            widget.images.indexWhere((img) => img.path == image.file.path);
 
         // Delete the file and its metadata
         await file.delete();
@@ -363,9 +399,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
 
             // Remove from current category
             if (_loadedImages.containsKey(currentCategory)) {
-              _loadedImages[currentCategory]?.removeWhere(
-                      (img) => img.file.path == image.file.path
-              );
+              _loadedImages[currentCategory]
+                  ?.removeWhere((img) => img.file.path == image.file.path);
             }
 
             // Remove from categorizedImages
@@ -478,7 +513,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
     }
 
     // Filter photos to only include those with faces
-    final photosWithFaces = _allPhotos.where((photo) => photo.faces.isNotEmpty).toList();
+    final photosWithFaces =
+        _allPhotos.where((photo) => photo.faces.isNotEmpty).toList();
 
     if (photosWithFaces.isEmpty) {
       return Center(
@@ -494,7 +530,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
             const SizedBox(height: 8),
             Text(
               'Take some photos of people to see them here',
-              style: TextStyle(color: Colors.grey.withOpacity(0.7), fontSize: 12),
+              style:
+                  TextStyle(color: Colors.grey.withOpacity(0.7), fontSize: 12),
             ),
           ],
         ),
@@ -514,11 +551,14 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
     }
 
     // Create PersonCluster objects
-    final List<PersonCluster> personClusters = faceClusters.entries.map((entry) {
+    final List<PersonCluster> personClusters =
+        faceClusters.entries.map((entry) {
       final clusterId = entry.key;
       final faceIds = entry.value;
-      final clusterPhotos = photosWithFaces.where((photo) =>
-          photo.faces.any((face) => faceIds.contains(face.id))).toList();
+      final clusterPhotos = photosWithFaces
+          .where(
+              (photo) => photo.faces.any((face) => faceIds.contains(face.id)))
+          .toList();
       clusterPhotos.sort((a, b) => b.dateTime.compareTo(a.dateTime));
       final representativePhoto = _findBestRepresentativePhoto(clusterPhotos);
 
@@ -572,7 +612,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
                         Expanded(
                           flex: 4,
                           child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(12)),
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
@@ -597,7 +638,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
                                     ),
                                     padding: const EdgeInsets.all(8),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
@@ -659,7 +701,9 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
     // Reset categories
     categorizedImages = {
       'Recent': images.take(30).toList(),
-      'Favorites': images.where((img) => favoriteImages.contains(img.file.path)).toList(),
+      'Favorites': images
+          .where((img) => favoriteImages.contains(img.file.path))
+          .toList(),
       'All Photos': images,
     };
 
@@ -670,17 +714,21 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
     }
 
     // Add smart albums
-    categorizedImages['Screenshots'] = images.where((img) =>
-        path.basename(img.file.path).toLowerCase().contains('screenshot')).toList();
+    categorizedImages['Screenshots'] = images
+        .where((img) =>
+            path.basename(img.file.path).toLowerCase().contains('screenshot'))
+        .toList();
 
-    categorizedImages['Videos'] = images.where((img) =>
-        ['mp4', 'mov', '3gp'].contains(
-            path.extension(img.file.path).toLowerCase())).toList();
+    categorizedImages['Videos'] = images
+        .where((img) => ['mp4', 'mov', '3gp']
+            .contains(path.extension(img.file.path).toLowerCase()))
+        .toList();
   }
 
   void _showPersonPhotos(List<String> faceIds) {
-    final personPhotos = _allPhotos.where((photo) =>
-        photo.faces.any((face) => faceIds.contains(face.id))).toList();
+    final personPhotos = _allPhotos
+        .where((photo) => photo.faces.any((face) => faceIds.contains(face.id)))
+        .toList();
 
     Navigator.push(
       context,
@@ -689,7 +737,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
           images: personPhotos.map((p) => XFile(p.path)).toList(),
           onDelete: widget.onDelete,
           onShare: widget.onShare, // Add this
-          onInfo: widget.onInfo,   // Add this
+          onInfo: widget.onInfo, // Add this
         ),
       ),
     );
@@ -718,8 +766,10 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
     }
 
     // Filter photos with location data
-    final photosWithLocation = _allPhotos.where((photo) =>
-    photo.location != null && (photo.placeName?.isNotEmpty ?? false)).toList();
+    final photosWithLocation = _allPhotos
+        .where((photo) =>
+            photo.location != null && (photo.placeName?.isNotEmpty ?? false))
+        .toList();
 
     if (photosWithLocation.isEmpty) {
       return Center(
@@ -742,7 +792,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
       );
     }
 
-    final locationClusters = LocationClusterManager.clusterByLocation(photosWithLocation);
+    final locationClusters =
+        LocationClusterManager.clusterByLocation(photosWithLocation);
 
     if (locationClusters.isEmpty) {
       return const Center(
@@ -818,7 +869,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    LocationClusterManager.getClusterDisplayName(clusterKey),
+                                    LocationClusterManager
+                                        .getClusterDisplayName(clusterKey),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -857,7 +909,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
           images: photos.map((p) => XFile(p.path)).toList(),
           onDelete: widget.onDelete,
           onShare: widget.onShare, // Add this
-          onInfo: widget.onInfo,   // Add this
+          onInfo: widget.onInfo, // Add this
         ),
       ),
     );
@@ -867,7 +919,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
     // Load saved preferences like favorites, view settings, etc.
     // This would typically use SharedPreferences
     setState(() {
-      favoriteImages = <String>{};  // Load from storage
+      favoriteImages = <String>{}; // Load from storage
     });
   }
 
@@ -927,7 +979,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
       itemBuilder: (context, index) {
         final image = searchResults[index];
         final originalIndex = widget.images.indexWhere(
-              (img) => img.path == image.file.path,
+          (img) => img.path == image.file.path,
         );
         return _buildPhotoItem(image.file, originalIndex);
       },
@@ -997,7 +1049,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
     // Group images by month/year
     final groupedImages = groupBy(
       images,
-          (ImageWithDate image) {
+      (ImageWithDate image) {
         return DateFormat('MMMM yyyy').format(image.date);
       },
     );
@@ -1034,7 +1086,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
             mainAxisSpacing: 2,
           ),
           delegate: SliverChildBuilderDelegate(
-                (context, index) {
+            (context, index) {
               if (index >= images.length) return null;
               return _buildPhotoItem(images[index].file, index);
             },
@@ -1067,7 +1119,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
               mainAxisSpacing: 2,
             ),
             delegate: SliverChildBuilderDelegate(
-                  (context, index) {
+              (context, index) {
                 if (index >= entry.value.length) return null;
                 final image = entry.value[index];
                 return _buildPhotoItem(image.file, index);
@@ -1088,11 +1140,6 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
           ),
         ),
     ];
-  }
-
-  String _getDateLabel(DateTime date) {
-    // This method can be removed as date labels are no longer needed
-    return '';
   }
 
   Widget _buildAlbumsTab() {
@@ -1244,12 +1291,12 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
                 ),
                 child: isSelected
                     ? const Center(
-                  child: Icon(
-                    Icons.check,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                )
+                        child: Icon(
+                          Icons.check,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      )
                     : null,
               ),
             ),
@@ -1284,7 +1331,9 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
         images.sort((a, b) {
           int sizeA = File(a.file.path).lengthSync();
           int sizeB = File(b.file.path).lengthSync();
-          return sortAscending ? sizeA.compareTo(sizeB) : sizeB.compareTo(sizeA);
+          return sortAscending
+              ? sizeA.compareTo(sizeB)
+              : sizeB.compareTo(sizeA);
         });
         break;
     }
@@ -1294,12 +1343,18 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
     setState(() {
       filteredImages = widget.images
           .map((file) => ImageWithDate(
-        file: file,
-        date: File(file.path).lastModifiedSync(),
-      ))
+                file: file,
+                date: File(file.path).lastModifiedSync(),
+              ))
           .where((img) =>
-      path.basename(img.file.path).toLowerCase().contains(query.toLowerCase()) ||
-          DateFormat('MMMM yyyy').format(img.date).toLowerCase().contains(query.toLowerCase()))
+              path
+                  .basename(img.file.path)
+                  .toLowerCase()
+                  .contains(query.toLowerCase()) ||
+              DateFormat('MMMM yyyy')
+                  .format(img.date)
+                  .toLowerCase()
+                  .contains(query.toLowerCase()))
           .toList();
     });
   }
@@ -1318,7 +1373,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
       PageRouteBuilder(
         opaque: false,
         barrierColor: Colors.black.withOpacity(0.95),
-        pageBuilder: (context, animation, secondaryAnimation) => ImagePreviewScreen(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            ImagePreviewScreen(
           image: imageWithMetadata,
           isFavorite: isFavorite,
           onImageUpdated: (updatedImage) {
@@ -1389,7 +1445,10 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
       // Load EXIF data
       final bytes = await File(imageWithDate.file.path).readAsBytes();
       final exifData = await readExifFromBytes(bytes);
-      final exifMap = exifData.toString().split(',').fold<Map<String, String>>({}, (map, item) {
+      final exifMap = exifData
+          .toString()
+          .split(',')
+          .fold<Map<String, String>>({}, (map, item) {
         final parts = item.split('=');
         if (parts.length == 2) {
           map[parts[0].trim()] = parts[1].trim();
@@ -1398,9 +1457,9 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
       });
 
       // Try to get location from photo metadata
-      final currentLocation = await PhotoManager.getCurrentLocation();
+      final currentLocation = await PhotoManagerV2.getCurrentLocation();
       if (currentLocation != null) {
-        location = await PhotoManager.getPlaceName(currentLocation);
+        location = await PhotoManagerV2.getPlaceName(currentLocation);
       }
 
       return ImageMetadata(
@@ -1429,7 +1488,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
         // Update in loaded images
         for (var category in _loadedImages.keys) {
           final index = _loadedImages[category]?.indexWhere(
-                (img) => img.file.path == updatedImage.file.path,
+            (img) => img.file.path == updatedImage.file.path,
           );
           if (index != null && index != -1) {
             final oldImage = _loadedImages[category]![index];
@@ -1443,7 +1502,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
         // Update in categorized images
         for (var category in categorizedImages.keys) {
           final index = categorizedImages[category]?.indexWhere(
-                (img) => img.file.path == updatedImage.file.path,
+            (img) => img.file.path == updatedImage.file.path,
           );
           if (index != null && index != -1) {
             categorizedImages[category]![index] = ImageWithDate(
@@ -1470,7 +1529,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
   Future<void> _saveMetadataChanges(ImageWithMetadata updatedImage) async {
     try {
       final directory = await getExternalStorageDirectory();
-      final String metadataPath = '${directory!.path}/MyCameraApp/metadata.json';
+      final String metadataPath =
+          '${directory!.path}/MyCameraApp/metadata.json';
       final file = File(metadataPath);
 
       List<dynamic> metadata = [];
@@ -1480,9 +1540,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
       }
 
       // Find and update or add new metadata
-      final index = metadata.indexWhere((item) =>
-      item['path'] == updatedImage.file.path
-      );
+      final index =
+          metadata.indexWhere((item) => item['path'] == updatedImage.file.path);
 
       final newMetadata = {
         'path': updatedImage.file.path,
@@ -1518,9 +1577,7 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
 
   Future<void> _shareSelectedImages() async {
     try {
-      final files = selectedImages
-          .map((path) => XFile(path))
-          .toList();
+      final files = selectedImages.map((path) => XFile(path)).toList();
       await Share.shareXFiles(
         files,
         text: 'Check out these photos!',
@@ -1634,19 +1691,19 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
                     ),
                     suffixIcon: searchController.text.isNotEmpty
                         ? IconButton(
-                      icon: Icon(
-                        Icons.clear,
-                        color: Colors.grey[400],
-                      ),
-                      onPressed: () {
-                        if (mounted) {
-                          setState(() {
-                            searchController.clear();
-                            _initializeImages();
-                          });
-                        }
-                      },
-                    )
+                            icon: Icon(
+                              Icons.clear,
+                              color: Colors.grey[400],
+                            ),
+                            onPressed: () {
+                              if (mounted) {
+                                setState(() {
+                                  searchController.clear();
+                                  _initializeImages();
+                                });
+                              }
+                            },
+                          )
                         : null,
                   ),
                   onChanged: (value) {
@@ -1718,7 +1775,8 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
                 children: [
                   IconButton(
                     icon: const Icon(Icons.share_rounded),
-                    onPressed: selectedImages.isEmpty ? null : _shareSelectedImages,
+                    onPressed:
+                        selectedImages.isEmpty ? null : _shareSelectedImages,
                     color: Colors.white,
                   ),
                   const SizedBox(width: 20),
@@ -1727,20 +1785,21 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
                     onPressed: selectedImages.isEmpty
                         ? null
                         : () {
-                      for (var imagePath in selectedImages) {
-                        _toggleFavorite(imagePath);
-                      }
-                      setState(() {
-                        isSelecting = false;
-                        selectedImages.clear();
-                      });
-                    },
+                            for (var imagePath in selectedImages) {
+                              _toggleFavorite(imagePath);
+                            }
+                            setState(() {
+                              isSelecting = false;
+                              selectedImages.clear();
+                            });
+                          },
                     color: Colors.white,
                   ),
                   const SizedBox(width: 20),
                   IconButton(
                     icon: const Icon(Icons.delete_outline),
-                    onPressed: selectedImages.isEmpty ? null : _deleteSelectedImages,
+                    onPressed:
+                        selectedImages.isEmpty ? null : _deleteSelectedImages,
                     color: Colors.red,
                   ),
                 ],
@@ -1754,20 +1813,26 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
   }
 
   List<DateTime> _getYears() {
-    final years = widget.images.map((file) {
-      final date = File(file.path).lastModifiedSync();
-      return DateTime(date.year);
-    }).toSet().toList();
+    final years = widget.images
+        .map((file) {
+          final date = File(file.path).lastModifiedSync();
+          return DateTime(date.year);
+        })
+        .toSet()
+        .toList();
 
     years.sort((a, b) => b.compareTo(a)); // Latest year first
     return years;
   }
 
   List<DateTime> _getMonths() {
-    final months = widget.images.map((file) {
-      final date = File(file.path).lastModifiedSync();
-      return DateTime(date.year, date.month);
-    }).toSet().toList();
+    final months = widget.images
+        .map((file) {
+          final date = File(file.path).lastModifiedSync();
+          return DateTime(date.year, date.month);
+        })
+        .toSet()
+        .toList();
 
     months.sort((a, b) => b.compareTo(a)); // Latest month first
     return months;
@@ -1975,7 +2040,9 @@ class _GalleryScreenState extends State<GalleryScreen> with SingleTickerProvider
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
-                  physics: !isSelecting ? const AlwaysScrollableScrollPhysics() : const NeverScrollableScrollPhysics(),
+                  physics: !isSelecting
+                      ? const AlwaysScrollableScrollPhysics()
+                      : const NeverScrollableScrollPhysics(),
                   children: [
                     Container(
                       key: const PageStorageKey('photos'),
@@ -2237,12 +2304,12 @@ class GridPainter extends CustomPainter {
 
 class TimeoutError extends Error {}
 
-class PhotoManager {
-
+class PhotoManagerV2 {
   static Future<List<PhotoMetadata>> getAllMetadata() async {
     try {
       final directory = await getExternalStorageDirectory();
-      final String metadataPath = '${directory!.path}/MyCameraApp/metadata.json';
+      final String metadataPath =
+          '${directory!.path}/MyCameraApp/metadata.json';
       final file = File(metadataPath);
 
       if (!await file.exists()) {
@@ -2269,10 +2336,10 @@ class PhotoManager {
     }
   }
 
-
   static Future<String?> getPlaceName(Location location) async {
     try {
-      List<geocoding.Placemark> placemarks = await geocoding.placemarkFromCoordinates(
+      List<geocoding.Placemark> placemarks =
+          await geocoding.placemarkFromCoordinates(
         location.latitude,
         location.longitude,
       );
@@ -2312,7 +2379,6 @@ class PhotoManager {
     }
     return null;
   }
-
 
   static Future<Location?> getCurrentLocation() async {
     try {
@@ -2366,7 +2432,8 @@ class PhotoManager {
     return true;
   }
 
-  static Map<String, List<PhotoMetadata>> categorizeByLocation(List<PhotoMetadata> photos) {
+  static Map<String, List<PhotoMetadata>> categorizeByLocation(
+      List<PhotoMetadata> photos) {
     Map<String, List<PhotoMetadata>> categorized = {};
 
     for (var photo in photos) {
@@ -2385,7 +2452,8 @@ class PhotoManager {
     return categorized;
   }
 
-  static Map<String, List<PhotoMetadata>> categorizeByDate(List<PhotoMetadata> photos) {
+  static Map<String, List<PhotoMetadata>> categorizeByDate(
+      List<PhotoMetadata> photos) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
@@ -2401,7 +2469,6 @@ class PhotoManager {
         );
         return photoDate.isAtSameMomentAs(today);
       }).toList(),
-
       'Yesterday': photos.where((photo) {
         final photoDate = DateTime(
           photo.dateTime.year,
@@ -2410,7 +2477,6 @@ class PhotoManager {
         );
         return photoDate.isAtSameMomentAs(yesterday);
       }).toList(),
-
       'Last Week': photos.where((photo) {
         final photoDate = DateTime(
           photo.dateTime.year,
@@ -2419,7 +2485,6 @@ class PhotoManager {
         );
         return photoDate.isAfter(lastWeek) && photoDate.isBefore(yesterday);
       }).toList(),
-
       'Last Month': photos.where((photo) {
         final photoDate = DateTime(
           photo.dateTime.year,
@@ -2428,7 +2493,6 @@ class PhotoManager {
         );
         return photoDate.isAfter(lastMonth) && photoDate.isBefore(lastWeek);
       }).toList(),
-
       'Older': photos.where((photo) {
         final photoDate = DateTime(
           photo.dateTime.year,
@@ -2438,5 +2502,64 @@ class PhotoManager {
         return photoDate.isBefore(lastMonth);
       }).toList(),
     };
+  }
+}
+
+class GalleryManager {
+  static DateTime? lastFetched; // To store the last fetched time
+
+  // Fetch images from gallery
+  Future<List<AssetEntity>> fetchGalleryImages() async {
+    final PermissionState ps = await PhotoManager.requestPermissionExtend();
+    if (!ps.isAuth) {
+      print("Permission denied");
+      return [];
+    }
+
+    await PhotoManager.clearFileCache();
+
+    final albums = await PhotoManager.getAssetPathList(
+      filterOption: FilterOptionGroup(
+        orders: [OrderOption(type: OrderOptionType.createDate, asc: false)],
+      ),
+      type: RequestType.image,
+    );
+
+    final recentAlbum = albums.first; // Fetch the most recent album
+    final allAssets = await recentAlbum.getAssetListPaged(page: 0, size: 50);
+
+    // Fetch files for all assets
+    final assetFiles = await Future.wait(allAssets.map((asset) async {
+      final file = await asset.file;
+      return {'asset': asset, 'file': file};
+    }));
+    // If there's a lastFetched datetime, filter images after that time
+    if (lastFetched != null) {
+      updateLastFetched();
+      print("CONDITION MET");
+      return assetFiles.where((entry) {
+        final file = entry['file'] as File?;
+        if (file != null) {
+          final modificationDate = file.lastModifiedSync();
+          return modificationDate.isAfter(lastFetched!);
+        }
+        return false;
+      }).map((entry) => entry['asset'] as AssetEntity).toList();
+    } else {
+      updateLastFetched();
+      return allAssets;
+    }
+  }
+
+  // Convert an AssetEntity to XFile
+  Future<XFile> convertAssetToXFile(AssetEntity asset) async {
+    final file = await asset.file;
+    if (file == null) throw Exception("Failed to get file from asset");
+    return XFile(file.path);
+  }
+
+  // Update lastFetched time
+  void updateLastFetched() {
+    lastFetched = DateTime.now();
   }
 }
