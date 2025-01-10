@@ -9,134 +9,12 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as path;
 import 'dart:math';
 import 'package:flutter/foundation.dart'; // For compute
+import 'location.dart';
+import 'faceData.dart';
+import 'photoMetadata.dart';
 
 
 
-class Location {
-  final double latitude;
-  final double longitude;
-
-  Location({
-    required this.latitude,
-    required this.longitude,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'latitude': latitude,
-    'longitude': longitude,
-  };
-
-  factory Location.fromJson(Map<String, dynamic> json) => Location(
-    latitude: json['latitude'] as double,
-    longitude: json['longitude'] as double,
-  );
-}
-
-
-class PhotoMetadata {
-  final String path;
-  final DateTime dateTime;
-  final Location? location;
-  final String? placeName;
-  final String? filter;
-  final List<FaceData> faces;
-
-  PhotoMetadata({
-    required this.path,
-    required this.dateTime,
-    this.location,
-    this.placeName,
-    this.filter,
-    this.faces = const [],
-  });
-
-  Map<String, dynamic> toJson() => {
-    'path': path,
-    'dateTime': dateTime.toIso8601String(),
-    'location': location?.toJson(),
-    'placeName': placeName,
-    'filter': filter,
-    'faces': faces.map((face) => face.toJson()).toList(),
-  };
-
-  factory PhotoMetadata.fromJson(Map<String, dynamic> json) {
-    return PhotoMetadata(
-      path: json['path'] as String,
-      dateTime: DateTime.parse(json['dateTime'] as String),
-      location: json['location'] != null
-          ? Location.fromJson(json['location'] as Map<String, dynamic>)
-          : null,
-      placeName: json['placeName'] as String?,
-      filter: json['filter'] as String?,
-      faces: (json['faces'] as List?)
-          ?.map((face) => FaceData.fromJson(face as Map<String, dynamic>))
-          .toList() ??
-          [],
-    );
-  }
-}
-
-class FaceData {
-  final String id;
-  final String? name;
-  final Rect boundingBox;
-  final Map<FaceLandmarkType, Point<int>> landmarks;
-  final Map<String, double> headAngle;
-  final double smiling;
-  final int? trackingId;
-
-  FaceData({
-    required this.id,
-    this.name,
-    required this.boundingBox,
-    Map<FaceLandmarkType, Point<int>>? landmarks,
-    Map<String, double>? headAngle,
-    this.smiling = 0.0,
-    this.trackingId,
-  }) :
-        this.landmarks = landmarks ?? {},
-        this.headAngle = headAngle ?? {};
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'boundingBox': {
-      'left': boundingBox.left,
-      'top': boundingBox.top,
-      'width': boundingBox.width,
-      'height': boundingBox.height,
-    },
-    'landmarks': landmarks.map((key, value) =>
-        MapEntry(key.index.toString(), {'x': value.x, 'y': value.y})),
-    'headAngle': headAngle,
-    'smiling': smiling,
-    'trackingId': trackingId,
-  };
-
-  factory FaceData.fromJson(Map<String, dynamic> json) {
-    final box = json['boundingBox'] as Map<String, dynamic>;
-    return FaceData(
-      id: json['id'] as String,
-      name: json['name'] as String?,
-      boundingBox: Rect.fromLTWH(
-        box['left'] as double,
-        box['top'] as double,
-        box['width'] as double,
-        box['height'] as double,
-      ),
-      landmarks: (json['landmarks'] as Map<String, dynamic>).map((key, value) {
-        final point = value as Map<String, dynamic>;
-        return MapEntry(
-          FaceLandmarkType.values[int.parse(key)],
-          Point(point['x'] as int, point['y'] as int),
-        );
-      }),
-      headAngle: Map<String, double>.from(json['headAngle'] as Map),
-      smiling: json['smiling'] as double,
-      trackingId: json['trackingId'] as int?,
-    );
-  }
-}
 /// Manages face detection, face data storage, and clustering.
 class FaceRecognitionManager {
   // Initialize the face detector with desired options.
@@ -448,6 +326,8 @@ class FaceRecognitionManager {
     return '${path.basename(imagePath)}_${timestamp}_$trackingComponent';
   }
 }
+
+
 class LocationClusterManager {
   static Map<String, List<PhotoMetadata>> clusterByLocation(List<PhotoMetadata> photos) {
     Map<String, List<PhotoMetadata>> clusters = {};
