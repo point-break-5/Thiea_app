@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:flutter/services.dart';
 import 'package:thiea_app/screens/cameraScreen/camera_screen.dart';
-
 
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
+
+    // Lock the app orientation to portrait
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+
     final List<CameraDescription> cameras = await availableCameras();
 
     if (cameras.isEmpty) {

@@ -11,7 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
-
+import 'dart:math' as math;
 import 'package:thiea_app/models/photoMetadata.dart';
 import 'package:thiea_app/models/location.dart';
 
@@ -121,20 +121,49 @@ class _CameraScreenState extends State<CameraScreen>
 
   //.............................................................................................................................................
   Widget _buildCameraPreview() {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return GestureDetector(
       onScaleStart: _handleScaleStart,
       onScaleUpdate: _handleScaleUpdate,
       onTapDown: (details) => _handleFocusTap(details),
       child: Stack(
-        fit: StackFit.expand,
         children: [
-          CameraPreview(_controller!),
+          Transform.scale(
+            scale: 3.6 /
+                _controller!.value.aspectRatio, // Doubled the scale factor
+            child: Center(
+              child: Transform.rotate(
+                angle: _calculateRotationAngle(),
+                child: AspectRatio(
+                  aspectRatio: _controller!.value.aspectRatio,
+                  child: CameraPreview(_controller!),
+                ),
+              ),
+            ),
+          ),
           if (isGridVisible) _buildGrid(),
           if (focusPoint != null && isFocusing) _buildFocusPoint(),
           if (isTimerActive) _buildTimerOverlay(),
         ],
       ),
     );
+  }
+
+  double _calculateRotationAngle() {
+    final int sensorOrientation = _controller!.description.sensorOrientation;
+    switch (sensorOrientation) {
+      case 90:
+        return math.pi / 2;
+      case 270:
+        return -math.pi / 2;
+      case 180:
+        return math.pi;
+      default:
+        return 0.0; // Default for 0 degrees
+    }
   }
 
   void _handleScaleStart(ScaleStartDetails details) {
