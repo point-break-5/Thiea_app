@@ -10,7 +10,11 @@ import 'package:thiea_app/models/location.dart';
 import 'package:thiea_app/models/photoMetadata.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
-
+import 'dart:collection';
+import 'dart:async';
+import 'dart:math';
+import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 
 class GridPainter extends CustomPainter {
   @override
@@ -240,17 +244,24 @@ class PhotoManagerInternal {
 }
 
 class GalleryManager {
-  static DateTime? lastFetched; // To store the last fetched time
+  static DateTime? lastFetched;
+  static const numberOfImages = 300;
+  static const int _chunkSize = 25;
 
-  // Fetch images from gallery
+  final LinkedHashMap<String, String> _filePathCache = LinkedHashMap(
+    equals: (a, b) => a == b,
+    hashCode: (key) => key.hashCode,
+  );
+
+  final Map<String, DateTime> _modificationDateCache = {};
+
+  Timer? _cacheClearTimer;
+
   Future<List<AssetEntity>> fetchGalleryImages() async {
     final PermissionState ps = await PhotoManager.requestPermissionExtend();
-    if (!ps.isAuth) {
-      print("Permission denied");
-      return [];
-    }
+    if (!ps.isAuth) return [];
 
-    await PhotoManager.clearFileCache();
+    _debouncedClearCache();
 
     final albums = await PhotoManager.getAssetPathList(
       filterOption: FilterOptionGroup(
@@ -259,44 +270,151 @@ class GalleryManager {
       type: RequestType.image,
     );
 
-    final recentAlbum = albums.first; // Fetch the most recent album
-    final allAssets = await recentAlbum.getAssetListPaged(page: 0, size: 50);
+    if (albums.isEmpty) return [];
 
-    // Fetch files for all assets
-    final assetFiles = await Future.wait(allAssets.map((asset) async {
-      final file = await asset.file;
-      return {'asset': asset, 'file': file};
-    }));
-    // If there's a lastFetched datetime, filter images after that time
+    final recentAlbum = albums.first;
+
+    final totalCount = await recentAlbum.assetCountAsync;
+    final pageSize = min(totalCount, numberOfImages);
+
+    final allAssets = await recentAlbum.getAssetListPaged(
+      page: 0,
+      size: pageSize,
+    );
+
     if (lastFetched != null) {
+      final processedAssets =
+          await _processAssetsInParallelOptimized(allAssets);
       updateLastFetched();
-      print("CONDITION MET");
-      return assetFiles
-          .where((entry) {
-            final file = entry['file'] as File?;
-            if (file != null) {
-              final modificationDate = file.lastModifiedSync();
-              return modificationDate.isAfter(lastFetched!);
-            }
-            return false;
-          })
-          .map((entry) => entry['asset'] as AssetEntity)
-          .toList();
+      return processedAssets;
     } else {
       updateLastFetched();
       return allAssets;
     }
   }
 
-  // Convert an AssetEntity to XFile
-  Future<XFile> convertAssetToXFile(AssetEntity asset) async {
-    final file = await asset.file;
-    if (file == null) throw Exception("Failed to get file from asset");
-    return XFile(file.path);
+  Future<List<AssetEntity>> _processAssetsInParallelOptimized(
+      List<AssetEntity> assets) async {
+    if (lastFetched == null) return assets;
+
+    final List<AssetEntity?> results = List.filled(assets.length, null);
+    final chunks = _splitIntoChunks(assets, _chunkSize);
+
+    await Future.wait(
+      chunks.mapIndexed((chunkIndex, chunk) async {
+        await Future.wait(
+          chunk.mapIndexed((innerIndex, asset) async {
+            try {
+              final globalIndex = chunkIndex * _chunkSize + innerIndex;
+              results[globalIndex] = await _processAssetOptimized(asset);
+            } catch (e) {
+              print("Error processing asset: $e");
+            }
+          }),
+        );
+      }),
+    );
+
+    return results.whereType<AssetEntity>().toList(growable: false);
   }
 
-  // Update lastFetched time
+  Future<AssetEntity?> _processAssetOptimized(AssetEntity asset) async {
+    if (lastFetched == null) return asset;
+
+    try {
+      if (_modificationDateCache.containsKey(asset.id)) {
+        return _modificationDateCache[asset.id]!.isAfter(lastFetched!)
+            ? asset
+            : null;
+      }
+
+      if (_filePathCache.containsKey(asset.id)) {
+        final file = File(_filePathCache[asset.id]!);
+        if (await file.exists()) {
+          final modDate = await _getFileModificationDate(file);
+          return modDate.isAfter(lastFetched!) ? asset : null;
+        }
+      }
+
+      final file = await asset.file;
+      if (file != null) {
+        _filePathCache[asset.id] = file.path;
+        final modDate = await _getFileModificationDate(file);
+        _modificationDateCache[asset.id] = modDate;
+        return modDate.isAfter(lastFetched!) ? asset : null;
+      }
+    } catch (e) {
+      print("Error processing asset ${asset.id}: $e");
+    }
+    return null;
+  }
+
+  Future<DateTime> _getFileModificationDate(File file) async {
+    return compute(
+      (String path) => File(path).lastModifiedSync(),
+      file.path,
+    );
+  }
+
+  List<List<T>> _splitIntoChunks<T>(List<T> list, int chunkSize) {
+    final int len = list.length;
+    final chunks = List<List<T>>.generate(
+      (len + chunkSize - 1) ~/ chunkSize,
+      (i) => list.sublist(
+        i * chunkSize,
+        min((i + 1) * chunkSize, len),
+      ),
+      growable: false,
+    );
+    return chunks;
+  }
+
+  Future<XFile> convertAssetToXFile(AssetEntity asset) async {
+    try {
+      if (_filePathCache.containsKey(asset.id)) {
+        final cachedPath = _filePathCache[asset.id]!;
+        final file = File(cachedPath);
+        if (await file.exists()) {
+          return XFile(cachedPath);
+        }
+      }
+
+      final file = await asset.file;
+      if (file == null) throw Exception("Failed to get file from asset");
+
+      _filePathCache[asset.id] = file.path;
+      return XFile(file.path);
+    } catch (e) {
+      throw Exception("Error converting asset to XFile: $e");
+    }
+  }
+
+  void _debouncedClearCache() {
+    _cacheClearTimer?.cancel();
+    _cacheClearTimer = Timer(Duration(minutes: 5), () async {
+      if (lastFetched == null ||
+          DateTime.now().difference(lastFetched!) > Duration(minutes: 30)) {
+        await PhotoManager.clearFileCache();
+        _modificationDateCache.clear();
+
+        if (_filePathCache.length > 500) {
+          final entriesToKeep = _filePathCache.entries.take(200);
+          _filePathCache.clear();
+          entriesToKeep.forEach((entry) {
+            _filePathCache[entry.key] = entry.value;
+          });
+        }
+      }
+    });
+  }
+
   void updateLastFetched() {
     lastFetched = DateTime.now();
+  }
+
+  void dispose() {
+    _cacheClearTimer?.cancel();
+    _filePathCache.clear();
+    _modificationDateCache.clear();
   }
 }

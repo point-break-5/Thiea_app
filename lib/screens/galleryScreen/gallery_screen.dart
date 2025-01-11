@@ -15,7 +15,8 @@ import 'package:exif/exif.dart';
 import 'package:thiea_app/models/image_optimizer.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_util.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_face_recognition.dart';
-//import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_places.dart';
+import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_places.dart';
+//import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_grid.dart';
 
 part 'gallery_screen_constants.dart';
 
@@ -450,181 +451,23 @@ class _GalleryScreenState extends State<GalleryScreen>
         .toList();
   }
 
-  void _showPersonPhotos(List<String> faceIds) {
-    final personPhotos = _allPhotos
-        .where((photo) => photo.faces.any((face) => faceIds.contains(face.id)))
-        .toList();
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => GalleryScreen(
-          images: personPhotos.map((p) => XFile(p.path)).toList(),
-          onDelete: widget.onDelete,
-          onShare: widget.onShare, // Add this
-          onInfo: widget.onInfo, // Add this
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlacesTab() {
-    if (_allPhotos.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.place, size: 48, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'No photos with location data',
-              style: TextStyle(color: Colors.grey),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Take some photos with location data to see them organized by place',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Filter photos with location data
-    final photosWithLocation = _allPhotos
-        .where((photo) =>
-            photo.location != null && (photo.placeName?.isNotEmpty ?? false))
-        .toList();
-
-    if (photosWithLocation.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.location_off, size: 48, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'No location data available',
-              style: TextStyle(color: Colors.grey),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Enable location services and take photos to see them organized by place',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final locationClusters =
-        LocationClusterManager.clusterByLocation(photosWithLocation);
-
-    if (locationClusters.isEmpty) {
-      return const Center(
-        child: Text(
-          'No location-date clusters found',
-          style: TextStyle(color: Colors.grey),
-        ),
-      );
-    }
-
-    return SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              '${locationClusters.length} Places',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(8),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemCount: locationClusters.length,
-              itemBuilder: (context, index) {
-                final clusterKey = locationClusters.keys.elementAt(index);
-                final photos = locationClusters[clusterKey]!;
-
-                return GestureDetector(
-                  onTap: () => _showLocationCluster(clusterKey, photos),
-                  child: Card(
-                    color: Colors.grey[900],
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Image.file(
-                            File(photos.first.path),
-                            fit: BoxFit.cover,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withOpacity(0.7),
-                                  ],
-                                ),
-                              ),
-                              padding: const EdgeInsets.all(8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    LocationClusterManager
-                                        .getClusterDisplayName(clusterKey),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${photos.length} photos',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // void _showPersonPhotos(List<String> faceIds) {
+  //   final personPhotos = _allPhotos
+  //       .where((photo) => photo.faces.any((face) => faceIds.contains(face.id)))
+  //       .toList();
+  //
+  //   Navigator.push(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder: (context) => GalleryScreen(
+  //         images: personPhotos.map((p) => XFile(p.path)).toList(),
+  //         onDelete: widget.onDelete,
+  //         onShare: widget.onShare, // Add this
+  //         onInfo: widget.onInfo, // Add this
+  //       ),
+  //     ),
+  //   );
+  // }
 
   void _showLocationCluster(String clusterKey, List<PhotoMetadata> photos) {
     Navigator.push(
@@ -867,10 +710,10 @@ class _GalleryScreenState extends State<GalleryScreen>
     ];
   }
 
-  String _getDateLabel(DateTime date) {
-    // This method can be removed as date labels are no longer needed
-    return '';
-  }
+  // String _getDateLabel(DateTime date) {
+  //   // This method can be removed as date labels are no longer needed
+  //   return '';
+  // }
 
   Widget _buildAlbumsTab() {
     return GridView.builder(
@@ -956,13 +799,13 @@ class _GalleryScreenState extends State<GalleryScreen>
     );
   }
 
-  void _scrollToTop() {
-    scrollController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
-  }
+  // void _scrollToTop() {
+  //   scrollController.animateTo(
+  //     0,
+  //     duration: const Duration(milliseconds: 500),
+  //     curve: Curves.easeInOut,
+  //   );
+  // }
 
   Widget _buildPhotoItem(XFile image, int index) {
     final isSelected = selectedImages.contains(image.path);
@@ -1035,15 +878,15 @@ class _GalleryScreenState extends State<GalleryScreen>
     );
   }
 
-  void _switchCategory(String newCategory) {
-    setState(() {
-      currentCategory = newCategory;
-      _currentPage = 0;
-      _hasMoreImages = true;
-      _loadedImages.clear();
-    });
-    _loadMoreImages();
-  }
+  // void _switchCategory(String newCategory) {
+  //   setState(() {
+  //     currentCategory = newCategory;
+  //     _currentPage = 0;
+  //     _hasMoreImages = true;
+  //     _loadedImages.clear();
+  //   });
+  //   _loadMoreImages();
+  // }
 
   void _sortImages(List<ImageWithDate> images) {
     switch (sortBy) {
@@ -1792,7 +1635,10 @@ class _GalleryScreenState extends State<GalleryScreen>
                     ),
                     Container(
                       key: const PageStorageKey('places'),
-                      child: _buildPlacesTab(),
+                      child: PlacesTab(
+                        allPhotos: _allPhotos,
+                        onShowLocationCluster: _showLocationCluster,
+                      ),
                     ),
                   ],
                 ),
