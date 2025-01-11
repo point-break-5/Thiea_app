@@ -96,7 +96,7 @@ class ImageOptimizer {
       final result = await FlutterImageCompress.compressAndGetFile(
         imagePath,
         compressedPath,
-        quality: 80, // You can adjust the quality as needed
+        quality: 40, // You can adjust the quality as needed
       );
 
       if (result == null) {
