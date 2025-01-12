@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
@@ -9,9 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:exif/exif.dart';
-
 
 class ImageWithDate {
   final XFile file;
@@ -19,7 +16,6 @@ class ImageWithDate {
 
   ImageWithDate({required this.file, required this.date});
 }
-
 
 class ImageMetadata {
   final DateTime date;
@@ -80,7 +76,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   @override
   void initState() {
     super.initState();
-    _photoViewController = PhotoViewController()..outputStateStream.listen(_onViewStateChanged);
+    _photoViewController = PhotoViewController()
+      ..outputStateStream.listen(_onViewStateChanged);
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -95,7 +92,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       final bytes = await File(widget.image.file.path).readAsBytes();
       final exifData = await readExifFromBytes(bytes);
       setState(() {
-        _exifData = exifData.toString().split(',').fold<Map<String, String>>({}, (map, item) {
+        _exifData = exifData.toString().split(',').fold<Map<String, String>>({},
+            (map, item) {
           final parts = item.split('=');
           if (parts.length == 2) {
             map[parts[0].trim()] = parts[1].trim();
@@ -140,7 +138,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       }
 
       final tempDir = await getTemporaryDirectory();
-      final tempPath = '${tempDir.path}/filtered_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final tempPath =
+          '${tempDir.path}/filtered_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final filteredFile = File(tempPath);
       await filteredFile.writeAsBytes(img.encodeJpg(filteredImage));
 
@@ -237,9 +236,11 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _exifData!.entries.map((entry) => Chip(
-                        label: Text('${entry.key}: ${entry.value}'),
-                      )).toList(),
+                      children: _exifData!.entries
+                          .map((entry) => Chip(
+                                label: Text('${entry.key}: ${entry.value}'),
+                              ))
+                          .toList(),
                     ),
                   ),
                 ],
@@ -265,25 +266,28 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       child: Column(
         children: [
           GestureDetector(
-            onTap: () => filterName != null ? _applyFilter(filterName) : setState(() => _editedImage = null),
+            onTap: () => filterName != null
+                ? _applyFilter(filterName)
+                : setState(() => _editedImage = null),
             child: Container(
               width: 64,
               height: 64,
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: _isLoading ? Colors.grey : Theme.of(context).primaryColor,
+                  color:
+                      _isLoading ? Colors.grey : Theme.of(context).primaryColor,
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : ClipRRect(
-                borderRadius: BorderRadius.circular(7),
-                child: Image.file(
-                  File(widget.image.file.path),
-                  fit: BoxFit.cover,
-                ),
-              ),
+                      borderRadius: BorderRadius.circular(7),
+                      child: Image.file(
+                        File(widget.image.file.path),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 8),
@@ -301,7 +305,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         children: [
           // Main image view
           GestureDetector(
-            onTap: () => setState(() => _isControlsVisible = !_isControlsVisible),
+            onTap: () =>
+                setState(() => _isControlsVisible = !_isControlsVisible),
             child: PhotoView(
               controller: _photoViewController,
               imageProvider: _editedImage != null
@@ -310,7 +315,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.covered * 2,
               backgroundDecoration: const BoxDecoration(color: Colors.black),
-              heroAttributes: PhotoViewHeroAttributes(tag: widget.image.file.path),
+              heroAttributes:
+                  PhotoViewHeroAttributes(tag: widget.image.file.path),
             ),
           ),
 
@@ -366,31 +372,38 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             IconButton(
               icon: const Icon(Icons.arrow_back),
               color: Colors.white,
               onPressed: () => Navigator.pop(context),
             ),
-            Column(
-              children: [
-                Text(
-                  DateFormat('MMMM d, yyyy').format(widget.image.metadata.date),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (widget.image.metadata.location != null)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
                   Text(
-                    widget.image.metadata.location!,
+                    DateFormat('MMMM d, yyyy')
+                        .format(widget.image.metadata.date),
                     style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
+                    overflow: TextOverflow.ellipsis, // Prevent text overflow
                   ),
-              ],
+                  if (widget.image.metadata.location != null)
+                    Text(
+                      widget.image.metadata.location!,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                      overflow: TextOverflow.ellipsis, // Prevent text overflow
+                    ),
+                ],
+              ),
             ),
             Row(
               children: [
@@ -461,7 +474,9 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                     onTap: widget.onShare,
                   ),
                   _buildActionButton(
-                    icon: widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    icon: widget.isFavorite
+                        ? Icons.favorite
+                        : Icons.favorite_border,
                     label: 'Favorite',
                     onTap: widget.onFavoriteToggle,
                     color: widget.isFavorite ? Colors.red : Colors.white,
@@ -491,7 +506,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Image'),
-        content: const Text('Are you sure you want to delete this image? This action cannot be undone.'),
+        content: const Text(
+            'Are you sure you want to delete this image? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

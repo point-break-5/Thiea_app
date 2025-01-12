@@ -7,12 +7,14 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 class PeopleTab extends StatelessWidget {
   final List<PhotoMetadata> allPhotos;
+  final Map<String, List<String>> faceClusters; // Add this
   final Function(PersonCluster cluster) onShowPersonDetails;
   final bool isProcessingFaces;
 
   const PeopleTab({
     Key? key,
     required this.allPhotos,
+    required this.faceClusters, // Add this
     required this.onShowPersonDetails,
     this.isProcessingFaces = false,
   }) : super(key: key);
@@ -35,33 +37,7 @@ class PeopleTab extends StatelessWidget {
       );
     }
 
-    final photosWithFaces =
-        allPhotos.where((photo) => photo.faces.isNotEmpty).toList();
-
-    if (photosWithFaces.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.face, size: 48, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
-              'No faces found in your photos',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Take some photos of people to see them here',
-              style:
-                  TextStyle(color: Colors.grey.withOpacity(0.7), fontSize: 12),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final faceClusters = FaceRecognitionManager.clusterFaces(allPhotos);
-
+    // Directly use precomputed clusters
     if (faceClusters.isEmpty) {
       return const Center(
         child: Text(
@@ -75,9 +51,8 @@ class PeopleTab extends StatelessWidget {
         faceClusters.entries.map((entry) {
       final clusterId = entry.key;
       final faceIds = entry.value;
-      final clusterPhotos = photosWithFaces
-          .where(
-              (photo) => photo.faces.any((face) => faceIds.contains(face.id)))
+      final clusterPhotos = allPhotos
+          .where((photo) => photo.faces.any((face) => faceIds.contains(face.id)))
           .toList();
       clusterPhotos.sort((a, b) => b.dateTime.compareTo(a.dateTime));
       final representativePhoto = _findBestRepresentativePhoto(clusterPhotos);
@@ -250,3 +225,4 @@ class PeopleTab extends StatelessWidget {
     return 'Person ${(hash % 1000) + 1}';
   }
 }
+
