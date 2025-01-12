@@ -92,9 +92,13 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       final bytes = await File(widget.image.file.path).readAsBytes();
       final exifData = await readExifFromBytes(bytes);
       setState(() {
-        _exifData = exifData.toString().split(',').fold<Map<String, String>>({},
-            (map, item) {
-          final parts = item.split('=');
+        _exifData = exifData
+            .toString()
+            .replaceAll('{', '') 
+            .replaceAll('}', '')
+            .split(',')
+            .fold<Map<String, String>>({}, (map, item) {
+          final parts = item.split(':');
           if (parts.length == 2) {
             map[parts[0].trim()] = parts[1].trim();
           }

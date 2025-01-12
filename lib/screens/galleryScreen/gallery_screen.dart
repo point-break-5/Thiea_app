@@ -8,7 +8,6 @@ import 'package:path/path.dart' as path;
 import 'dart:math';
 import 'package:thiea_app/models/photoMetadata.dart';
 import 'package:thiea_app/models/photo_cluster.dart';
-import 'package:collection/collection.dart';
 import 'package:thiea_app/screens/imagePreview/image_preview.dart';
 import 'package:exif/exif.dart';
 import 'package:thiea_app/models/image_optimizer.dart';
@@ -167,7 +166,7 @@ class _GalleryScreenState extends State<GalleryScreen>
           .where((img) => !_knownPhotos.contains(img.path))
           .toList();
 
-      print('Processing ${newPhotos.length} new photos...');
+      //print('Processing ${newPhotos.length} new photos...');
       if (newPhotos.isEmpty) {
         print('No new photos to process.');
         return;
@@ -176,9 +175,9 @@ class _GalleryScreenState extends State<GalleryScreen>
       final List<PhotoMetadata> updatedPhotos = [];
       for (XFile image in newPhotos) {
         try {
-          print('Processing faces for: ${image.path}');
+          //print('Processing faces for: ${image.path}');
           final faces = await FaceRecognitionManager.detectFaces(image.path);
-          print('Found ${faces.length} faces in ${path.basename(image.path)}');
+          //print('Found ${faces.length} faces in ${path.basename(image.path)}');
 
           final existingMetadata = PhotoMetadata(
             path: image.path,
@@ -207,8 +206,8 @@ class _GalleryScreenState extends State<GalleryScreen>
         await file.writeAsString(json.encode(existingMetadata));
 
         setState(() {
-          _allPhotos.addAll(updatedPhotos); // Add new photos to in-memory list
-          _faceClustersCalculated = false; // Mark clusters for recalculation
+          _allPhotos.addAll(updatedPhotos); 
+          _faceClustersCalculated = false; 
         });
       } else {
         print('No new faces detected.');
@@ -824,44 +823,48 @@ class _GalleryScreenState extends State<GalleryScreen>
 
   Future<ImageMetadata> _createMetadata(ImageWithDate imageWithDate) async {
     String? location;
-    Map<String, String>? exifData;
+    Map<String, String> exifMap = {};
 
     try {
-      // Load EXIF data
-      final bytes = await File(imageWithDate.file.path).readAsBytes();
-      final exifData = await readExifFromBytes(bytes);
-      final exifMap = exifData
-          .toString()
-          .split(',')
-          .fold<Map<String, String>>({}, (map, item) {
-        final parts = item.split('=');
-        if (parts.length == 2) {
-          map[parts[0].trim()] = parts[1].trim();
-        }
-        return map;
-      });
-
-      // Try to get location from photo metadata
-      final currentLocation = await PhotoManagerInternal.getCurrentLocation();
-      if (currentLocation != null) {
-        location = await PhotoManagerInternal.getPlaceName(currentLocation);
+      exifMap = await _loadExifData(imageWithDate.file.path);
+      if (location != null) {
+        debugPrint('Location for file ${imageWithDate.file.path}: $location');
+      } else {
+        debugPrint('No location available for file: ${imageWithDate.file.path}');
       }
-
       return ImageMetadata(
         date: imageWithDate.date,
         location: location,
         exifData: exifMap,
-        caption: null, // Initial caption is null
+        caption: null,
       );
     } catch (e) {
-      print('Error creating metadata: $e');
-      // Return basic metadata if we can't get additional info
+      debugPrint('Error creating metadata: $e');
       return ImageMetadata(
         date: imageWithDate.date,
         location: null,
         exifData: null,
         caption: null,
       );
+    }
+  }
+
+  Future<Map<String, String>> _loadExifData(String filePath) async {
+    try {
+      final bytes = await File(filePath).readAsBytes();
+      final exifData = await readExifFromBytes(bytes);
+
+      return exifData.toString().split(',').fold<Map<String, String>>({},
+          (map, item) {
+        final parts = item.split('=');
+        if (parts.length == 2) {
+          map[parts[0].trim()] = parts[1].trim();
+        }
+        return map;
+      });
+    } catch (e) {
+      debugPrint('Error loading EXIF data: $e');
+      return {}; // Return an empty map in case of error
     }
   }
 
