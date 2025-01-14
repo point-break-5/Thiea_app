@@ -14,7 +14,7 @@ class PeopleTab extends StatelessWidget {
   const PeopleTab({
     Key? key,
     required this.allPhotos,
-    required this.faceClusters, // Add this
+    required this.faceClusters,
     required this.onShowPersonDetails,
     this.isProcessingFaces = false,
   }) : super(key: key);

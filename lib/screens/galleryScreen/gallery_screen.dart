@@ -65,8 +65,9 @@ class _GalleryScreenState extends State<GalleryScreen>
           await Future.wait(assets.map(_galleryManager.convertAssetToXFile));
 
       setState(() {
-        widget.images.addAll(xFiles); // Populate images
-        _initializeImagesWithRetry(); // Refresh display
+        widget.images.addAll(xFiles);
+        _initializeImagesWithRetry();
+        currentCategory = 'Recent';
       });
     } catch (e) {
       print("Error initializing gallery: $e");
@@ -166,7 +167,6 @@ class _GalleryScreenState extends State<GalleryScreen>
           .where((img) => !_knownPhotos.contains(img.path))
           .toList();
 
-      //print('Processing ${newPhotos.length} new photos...');
       if (newPhotos.isEmpty) {
         print('No new photos to process.');
         return;
@@ -175,16 +175,12 @@ class _GalleryScreenState extends State<GalleryScreen>
       final List<PhotoMetadata> updatedPhotos = [];
       for (XFile image in newPhotos) {
         try {
-          //print('Processing faces for: ${image.path}');
           final faces = await FaceRecognitionManager.detectFaces(image.path);
-          //print('Found ${faces.length} faces in ${path.basename(image.path)}');
-
           final existingMetadata = PhotoMetadata(
             path: image.path,
             dateTime: File(image.path).lastModifiedSync(),
             faces: faces,
           );
-
           updatedPhotos.add(existingMetadata);
           _knownPhotos.add(image.path);
         } catch (e) {
@@ -199,15 +195,21 @@ class _GalleryScreenState extends State<GalleryScreen>
             '${directory!.path}/MyCameraApp/metadata.json';
         final file = File(metadataPath);
 
-        final List<dynamic> existingMetadata =
-            _allPhotos.map((photo) => photo.toJson()).toList();
-        existingMetadata.addAll(updatedPhotos.map((photo) => photo.toJson()));
+        // Convert _allPhotos to a serializable format
+        final List<dynamic> existingMetadata = _allPhotos
+            .map((photo) =>
+                photo.toJson()) // Ensure toJson returns Map<String, dynamic>
+            .toList();
+
+        existingMetadata.addAll(
+          updatedPhotos.map((photo) => photo.toJson()).toList(),
+        );
 
         await file.writeAsString(json.encode(existingMetadata));
 
         setState(() {
-          _allPhotos.addAll(updatedPhotos); 
-          _faceClustersCalculated = false; 
+          _allPhotos.addAll(updatedPhotos);
+          _faceClustersCalculated = false;
         });
       } else {
         print('No new faces detected.');
@@ -830,7 +832,8 @@ class _GalleryScreenState extends State<GalleryScreen>
       if (location != null) {
         debugPrint('Location for file ${imageWithDate.file.path}: $location');
       } else {
-        debugPrint('No location available for file: ${imageWithDate.file.path}');
+        debugPrint(
+            'No location available for file: ${imageWithDate.file.path}');
       }
       return ImageMetadata(
         date: imageWithDate.date,
@@ -1428,8 +1431,25 @@ class _GalleryScreenState extends State<GalleryScreen>
       final directory = await getExternalStorageDirectory();
       final String clustersPath =
           '${directory!.path}/MyCameraApp/clusters.json';
+
+      // Ensure the directory exists
+      final clusterDirectory = Directory('${directory.path}/MyCameraApp');
+      if (!await clusterDirectory.exists()) {
+        await clusterDirectory.create(recursive: true);
+      }
+
       final file = File(clustersPath);
-      await file.writeAsString(json.encode(_faceClusters));
+
+      // Convert _faceClusters map to a serializable format
+      final List<Map<String, dynamic>> serializedClusters =
+          _faceClusters.entries
+              .map((entry) => {
+                    'key': entry.key,
+                    'values': entry.value,
+                  })
+              .toList(); // Explicitly convert to List
+
+      await file.writeAsString(json.encode(serializedClusters));
       print('Face clusters saved to disk.');
     } catch (e) {
       print('Error saving face clusters: $e');
@@ -1445,12 +1465,30 @@ class _GalleryScreenState extends State<GalleryScreen>
 
       if (await file.exists()) {
         final String contents = await file.readAsString();
-        _faceClusters = Map<String, List<String>>.from(json.decode(contents));
-        _faceClustersCalculated = true; // Mark clusters as loaded
+        final dynamic jsonData = json.decode(contents);
+
+        if (jsonData is List<dynamic>) {
+          _faceClusters = {
+            for (var entry in jsonData)
+              if (entry is Map<String, dynamic>)
+                entry['key'] as String: List<String>.from(entry['values']),
+          };
+        } else if (jsonData is Map<String, dynamic>) {
+          _faceClusters = Map<String, List<String>>.from(jsonData);
+        } else {
+          _faceClusters = {};
+        }
+
+        _faceClustersCalculated = true;
         print('Face clusters loaded from disk.');
+      } else {
+        _faceClusters = {};
+        await _saveFaceClusters();
+        print('Clusters file not found. Created an empty clusters file.');
       }
     } catch (e) {
       print('Error loading face clusters: $e');
+      _faceClusters = {};
     }
   }
 
