@@ -13,6 +13,7 @@ TextEditingController searchController = TextEditingController();
 ScrollController scrollController = ScrollController();
 String? selectedFilter;
 bool _showScrollToTop = false;
+bool isScrollingUp = false;
 bool _isLoadingMore = false;
 bool _hasMoreImages = true;
 int _currentPage = 0;

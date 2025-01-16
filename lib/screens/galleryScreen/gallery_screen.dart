@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:ui';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
@@ -15,6 +16,7 @@ import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_util.dar
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_face_recognition.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_places.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_photos.dart';
+import 'package:thiea_app/Authentication/login_screen.dart';
 
 part 'gallery_screen_constants.dart';
 
@@ -460,24 +462,6 @@ class _GalleryScreenState extends State<GalleryScreen>
         .toList();
   }
 
-  // void _showPersonPhotos(List<String> faceIds) {
-  //   final personPhotos = _allPhotos
-  //       .where((photo) => photo.faces.any((face) => faceIds.contains(face.id)))
-  //       .toList();
-  //
-  //   Navigator.push(
-  //     context,
-  //     MaterialPageRoute(
-  //       builder: (context) => GalleryScreen(
-  //         images: personPhotos.map((p) => XFile(p.path)).toList(),
-  //         onDelete: widget.onDelete,
-  //         onShare: widget.onShare, // Add this
-  //         onInfo: widget.onInfo, // Add this
-  //       ),
-  //     ),
-  //   );
-  // }
-
   void _showLocationCluster(String clusterKey, List<PhotoMetadata> photos) {
     Navigator.push(
       context,
@@ -527,54 +511,6 @@ class _GalleryScreenState extends State<GalleryScreen>
       _showScrollToTop = scrollController.position.pixels > 1000;
     });
   }
-
-  Future<void> _showImageInfo(String imagePath) async {
-    final fileInfo = File(imagePath);
-    final lastModified = fileInfo.lastModifiedSync();
-    final fileSize = fileInfo.lengthSync();
-
-    if (mounted) {
-      await showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            backgroundColor: Colors.grey[900],
-            title: const Text('Image Information',
-                style: TextStyle(color: Colors.white)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Date: ${DateFormat('MMM d, yyyy HH:mm').format(lastModified)}',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                Text(
-                  'Size: ${(fileSize / 1024).toStringAsFixed(2)} KB',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                Text(
-                  'Path: $imagePath',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                child: const Text('Close'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          );
-        },
-      );
-    }
-  }
-
-  // String _getDateLabel(DateTime date) {
-  //   // This method can be removed as date labels are no longer needed
-  //   return '';
-  // }
 
   Widget _buildAlbumsTab() {
     return GridView.builder(
@@ -658,48 +594,6 @@ class _GalleryScreenState extends State<GalleryScreen>
         );
       },
     );
-  }
-
-  // void _scrollToTop() {
-  //   scrollController.animateTo(
-  //     0,
-  //     duration: const Duration(milliseconds: 500),
-  //     curve: Curves.easeInOut,
-  //   );
-  // }
-
-  // void _switchCategory(String newCategory) {
-  //   setState(() {
-  //     currentCategory = newCategory;
-  //     _currentPage = 0;
-  //     _hasMoreImages = true;
-  //     _loadedImages.clear();
-  //   });
-  //   _loadMoreImages();
-  // }
-
-  void _sortImages(List<ImageWithDate> images) {
-    switch (sortBy) {
-      case 'date':
-        images.sort((a, b) => sortAscending
-            ? a.date.compareTo(b.date)
-            : b.date.compareTo(a.date));
-        break;
-      case 'name':
-        images.sort((a, b) => sortAscending
-            ? path.basename(a.file.path).compareTo(path.basename(b.file.path))
-            : path.basename(b.file.path).compareTo(path.basename(a.file.path)));
-        break;
-      case 'size':
-        images.sort((a, b) {
-          int sizeA = File(a.file.path).lengthSync();
-          int sizeB = File(b.file.path).lengthSync();
-          return sortAscending
-              ? sizeA.compareTo(sizeB)
-              : sizeB.compareTo(sizeA);
-        });
-        break;
-    }
   }
 
   void _performSearch(String query) {
@@ -1145,55 +1039,62 @@ class _GalleryScreenState extends State<GalleryScreen>
 
   Widget _buildBottomBar() {
     if (isSelecting) {
-      return Container(
-        color: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: SafeArea(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${selectedImages.length} Selected',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+      return Transform.translate(
+        offset: const Offset(0, 0),
+        child: Container(
+          color: Colors.black,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: SafeArea(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Display the number of selected images
+                Text(
+                  '${selectedImages.length} Selected',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.share_rounded),
-                    onPressed:
-                        selectedImages.isEmpty ? null : _shareSelectedImages,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 20),
-                  IconButton(
-                    icon: const Icon(Icons.favorite_border),
-                    onPressed: selectedImages.isEmpty
-                        ? null
-                        : () {
-                            for (var imagePath in selectedImages) {
-                              _toggleFavorite(imagePath);
-                            }
-                            setState(() {
-                              isSelecting = false;
-                              selectedImages.clear();
-                            });
-                          },
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 20),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed:
-                        selectedImages.isEmpty ? null : _deleteSelectedImages,
-                    color: Colors.red,
-                  ),
-                ],
-              ),
-            ],
+                Row(
+                  children: [
+                    // Share Button
+                    IconButton(
+                      icon: const Icon(Icons.share_rounded),
+                      onPressed:
+                          selectedImages.isEmpty ? null : _shareSelectedImages,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 20),
+                    // Favorite Button
+                    IconButton(
+                      icon: const Icon(Icons.favorite_border),
+                      onPressed: selectedImages.isEmpty
+                          ? null
+                          : () {
+                              for (var imagePath in selectedImages) {
+                                _toggleFavorite(imagePath);
+                              }
+                              setState(() {
+                                isSelecting = false;
+                                selectedImages.clear();
+                              });
+                            },
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 20),
+                    // Delete Button
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed:
+                          selectedImages.isEmpty ? null : _deleteSelectedImages,
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -1259,169 +1160,240 @@ class _GalleryScreenState extends State<GalleryScreen>
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
-          child: Column(
+          child: Stack(
             children: [
-              // Header Section
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              NotificationListener<ScrollNotification>(
+                onNotification: (scrollNotification) {
+                  if (scrollNotification is ScrollUpdateNotification) {
+                    if (scrollNotification.scrollDelta != null) {
+                      setState(() {
+                        isScrollingUp = scrollNotification.scrollDelta! > 0;
+                      });
+                    }
+                  }
+                  return true;
+                },
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Photos',
-                          style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: -0.5,
+                    // Add extra padding at the top to avoid obstruction
+                    const SizedBox(height: 45),
+
+                    // Search Bar with spacing
+                    if (isSearching)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            top: 70), // Lower the search bar
+                        child: _buildSearchBar(),
+                      ),
+
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        physics: !isSelecting
+                            ? const AlwaysScrollableScrollPhysics()
+                            : const NeverScrollableScrollPhysics(),
+                        children: [
+                          Container(
+                            key: const PageStorageKey('photos'),
+                            child: GalleryPhotosTab(
+                              isSearching: isSearching,
+                              filteredImages: filteredImages,
+                              images: _loadedImages[currentCategory] ?? [],
+                              scrollController: scrollController,
+                              isLoadingMore: _isLoadingMore,
+                              loadMoreImages: _loadMoreImages,
+                              onShowImageDetails: (imageWithDate) =>
+                                  _showImageDetails(imageWithDate),
+                              years: _getYears(),
+                              months: _getMonths(),
+                              getFirstImageForYear: _getFirstImageForYear,
+                              getFirstImageForMonth: _getFirstImageForMonth,
+                              currentCategory: currentCategory,
+                              tabController: pingController,
+                            ),
                           ),
-                        ),
-                        Row(
-                          children: [
-                            Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: Colors.blue,
-                                borderRadius: BorderRadius.circular(19),
-                              ),
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                icon: const Icon(Icons.search, size: 20),
-                                color: Colors.white,
-                                onPressed: () {
-                                  if (mounted) {
-                                    setState(() {
-                                      isSearching = !isSearching;
-                                    });
-                                  }
-                                },
-                              ),
+                          Container(
+                            key: const PageStorageKey('albums'),
+                            child: _buildAlbumsTab(),
+                          ),
+                          Container(
+                            key: const PageStorageKey('people'),
+                            padding: const EdgeInsets.only(top: 16),
+                            child: PeopleTab(
+                              allPhotos: _allPhotos,
+                              faceClusters: _faceClusters,
+                              isProcessingFaces: _isProcessingFaces,
+                              onShowPersonDetails: _showPersonDetailsScreen,
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[800],
-                                borderRadius: BorderRadius.circular(19),
-                              ),
-                              child: TextButton(
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: Size.zero,
-                                ),
-                                onPressed: () {
-                                  if (mounted) {
-                                    setState(() {
-                                      isSelecting = !isSelecting;
-                                    });
-                                  }
-                                },
-                                child: const Text(
-                                  'Select',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
+                          ),
+                          Container(
+                            key: const PageStorageKey('places'),
+                            child: PlacesTab(
+                              allPhotos: _allPhotos,
+                              onShowLocationCluster: _showLocationCluster,
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${widget.images.length} items',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 14,
+                          ),
+                        ],
                       ),
                     ),
+                    if (isSelecting)
+                      Positioned(
+                        bottom:
+                            60, // Adjust as needed to appear above bottomNavigationBar
+                        left: 0,
+                        right: 0,
+                        child: _buildBottomBar(),
+                      ),
                   ],
                 ),
               ),
 
-              // Scrollable Tabs
-              if (!isSelecting && !isSearching)
-                Container(
-                  height: 44,
-                  margin: const EdgeInsets.only(top: 8),
-                  child: TabBar(
-                    controller: _tabController,
-                    isScrollable: false,
-                    labelColor: Colors.white,
-                    unselectedLabelColor: Colors.grey[600],
-                    indicatorColor: Colors.white,
-                    indicatorWeight: 2,
-                    labelStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    tabs: viewTabs.map((tab) => Tab(text: tab)).toList(),
+              // Translucent Top Bar
+
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SizedBox(
+                  height: 85, // Restrict the height to match the top bar
+                  child: Stack(
+                    children: [
+                      // Backdrop blur for just the area of the bar
+                      ClipRect(
+                        // Ensures the blur is confined to the bar's area
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                          child: Container(
+                            color: Colors.black.withOpacity(
+                                0), // Transparent container for the blur effect
+                          ),
+                        ),
+                      ),
+                      // The actual bar content
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0),
+                          backgroundBlendMode: BlendMode.overlay,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Left side: Library and photo count
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Library",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${widget.images.length} items',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              // Action buttons
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue,
+                                      borderRadius: BorderRadius.circular(19),
+                                    ),
+                                    child: IconButton(
+                                      padding: EdgeInsets.zero,
+                                      icon: const Icon(Icons.search, size: 20),
+                                      color: Colors.white,
+                                      onPressed: () {
+                                        if (mounted) {
+                                          setState(() {
+                                            isSearching = !isSearching;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    width: 50,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[800],
+                                      borderRadius: BorderRadius.circular(25),
+                                    ),
+                                    child: TextButton(
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: Size.zero,
+                                      ),
+                                      onPressed: () {
+                                        if (mounted) {
+                                          setState(() {
+                                            isSelecting = !isSelecting;
+                                            if (!isSelecting) {
+                                              selectedImages.clear();
+                                            }
+                                          });
+                                        }
+                                      },
+                                      child: const Text(
+                                        'Select',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[800],
+                                      borderRadius: BorderRadius.circular(19),
+                                    ),
+                                    child:
+                                        ProfileButton(), // Replace the IconButton with ProfileButton
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-
-              // Search Bar
-              if (isSearching) _buildSearchBar(),
-
-              // Main Content
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  physics: !isSelecting
-                      ? const AlwaysScrollableScrollPhysics()
-                      : const NeverScrollableScrollPhysics(),
-                  children: [
-                    Container(
-                      key: const PageStorageKey('photos'),
-                      child: GalleryPhotosTab(
-                        isSearching: isSearching,
-                        filteredImages: filteredImages,
-                        images: _loadedImages[currentCategory] ?? [],
-                        scrollController: scrollController,
-                        isLoadingMore: _isLoadingMore,
-                        loadMoreImages: _loadMoreImages,
-                        onShowImageDetails: (imageWithDate) =>
-                            _showImageDetails(imageWithDate),
-                        years: _getYears(),
-                        months: _getMonths(),
-                        getFirstImageForYear: _getFirstImageForYear,
-                        getFirstImageForMonth: _getFirstImageForMonth,
-                        currentCategory: currentCategory,
-                      ),
-                    ),
-                    Container(
-                      key: const PageStorageKey('albums'),
-                      child: _buildAlbumsTab(),
-                    ),
-                    Container(
-                      key: const PageStorageKey('people'),
-                      child: PeopleTab(
-                        allPhotos: _allPhotos,
-                        faceClusters: _faceClusters,
-                        isProcessingFaces: _isProcessingFaces,
-                        onShowPersonDetails: _showPersonDetailsScreen,
-                      ),
-                    ),
-                    Container(
-                      key: const PageStorageKey('places'),
-                      child: PlacesTab(
-                        allPhotos: _allPhotos,
-                        onShowLocationCluster: _showLocationCluster,
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
           ),
         ),
-        bottomNavigationBar: _buildBottomBar(),
+        bottomNavigationBar: TabBar(
+          controller: _tabController,
+          isScrollable: false,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.grey[600],
+          indicatorColor: Colors.transparent,
+          labelStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+          tabs: viewTabs.map((tab) => Tab(text: tab)).toList(),
+        ),
       ),
     );
   }
@@ -1492,6 +1464,10 @@ class _GalleryScreenState extends State<GalleryScreen>
     }
   }
 
+  Future<void> pingController() async {
+    _tabController.animateTo(1);
+  }
+
   @override
   void dispose() {
     searchController.removeListener(_handleSearch);
@@ -1502,3 +1478,21 @@ class _GalleryScreenState extends State<GalleryScreen>
     super.dispose();
   }
 }
+
+// void _showPersonPhotos(List<String> faceIds) {
+  //   final personPhotos = _allPhotos
+  //       .where((photo) => photo.faces.any((face) => faceIds.contains(face.id)))
+  //       .toList();
+  //
+  //   Navigator.push(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder: (context) => GalleryScreen(
+  //         images: personPhotos.map((p) => XFile(p.path)).toList(),
+  //         onDelete: widget.onDelete,
+  //         onShare: widget.onShare, // Add this
+  //         onInfo: widget.onInfo, // Add this
+  //       ),
+  //     ),
+  //   );
+  // }

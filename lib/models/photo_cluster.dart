@@ -9,7 +9,6 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as path;
 import 'dart:math';
 import 'package:flutter/foundation.dart'; // For compute
-import 'location.dart';
 import 'faceData.dart';
 import 'photoMetadata.dart';
 
@@ -511,58 +510,58 @@ class DisplayPictureScreen extends StatelessWidget {
 }
 
 
-PhotoMetadata _findBestRepresentativePhoto(List<PhotoMetadata> photos) {
-  // Sort photos by face quality criteria
-  final sortedPhotos = photos.toList()
-    ..sort((a, b) {
-      // Get the best face from each photo
-      final faceA = _getBestFace(a.faces);
-      final faceB = _getBestFace(b.faces);
+// PhotoMetadata _findBestRepresentativePhoto(List<PhotoMetadata> photos) {
+//   // Sort photos by face quality criteria
+//   final sortedPhotos = photos.toList()
+//     ..sort((a, b) {
+//       // Get the best face from each photo
+//       final faceA = _getBestFace(a.faces);
+//       final faceB = _getBestFace(b.faces);
 
-      // Compare face qualities
-      final qualityA = _calculateFaceQuality(faceA);
-      final qualityB = _calculateFaceQuality(faceB);
+//       // Compare face qualities
+//       final qualityA = _calculateFaceQuality(faceA);
+//       final qualityB = _calculateFaceQuality(faceB);
 
-      return qualityB.compareTo(qualityA);
-    });
+//       return qualityB.compareTo(qualityA);
+//     });
 
-  return sortedPhotos.first;
-}
+//   return sortedPhotos.first;
+// }
 
-FaceData _getBestFace(List<FaceData> faces) {
-  return faces.reduce((a, b) {
-    final qualityA = _calculateFaceQuality(a);
-    final qualityB = _calculateFaceQuality(b);
-    return qualityA > qualityB ? a : b;
-  });
-}
+// FaceData _getBestFace(List<FaceData> faces) {
+//   return faces.reduce((a, b) {
+//     final qualityA = _calculateFaceQuality(a);
+//     final qualityB = _calculateFaceQuality(b);
+//     return qualityA > qualityB ? a : b;
+//   });
+// }
 
-double _calculateFaceQuality(FaceData face) {
-  double quality = 0.0;
+// double _calculateFaceQuality(FaceData face) {
+//   double quality = 0.0;
 
-  // Prefer faces looking more directly at the camera
-  final headAngleY = face.headAngle['y'] ?? 0.0;
-  quality += 1.0 - (headAngleY.abs() / 45.0).clamp(0.0, 1.0);
+//   // Prefer faces looking more directly at the camera
+//   final headAngleY = face.headAngle['y'] ?? 0.0;
+//   quality += 1.0 - (headAngleY.abs() / 45.0).clamp(0.0, 1.0);
 
-  // Prefer smiling faces
-  quality += face.smiling;
+//   // Prefer smiling faces
+//   quality += face.smiling;
 
-  // Prefer faces with more detected landmarks
-  quality += face.landmarks.length / FaceLandmarkType.values.length;
+//   // Prefer faces with more detected landmarks
+//   quality += face.landmarks.length / FaceLandmarkType.values.length;
 
-  return quality;
-}
+//   return quality;
+// }
 
-String _generatePersonName(String clusterId, int faceCount) {
-  // Extract tracking ID if available
-  if (clusterId.startsWith('tracking_')) {
-    return 'Person ${clusterId.split('_')[1]}';
-  }
+// String _generatePersonName(String clusterId, int faceCount) {
+//   // Extract tracking ID if available
+//   if (clusterId.startsWith('tracking_')) {
+//     return 'Person ${clusterId.split('_')[1]}';
+//   }
 
-  // Generate a consistent name based on cluster ID
-  final hash = clusterId.hashCode.abs();
-  return 'Person ${(hash % 1000) + 1}';
-}
+//   // Generate a consistent name based on cluster ID
+//   final hash = clusterId.hashCode.abs();
+//   return 'Person ${(hash % 1000) + 1}';
+// }
 
 extension ImageProcessing on img.Image {
   void applyColorMatrix(List<double> matrix) {

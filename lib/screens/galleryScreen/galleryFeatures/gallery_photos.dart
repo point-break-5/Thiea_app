@@ -18,6 +18,7 @@ class GalleryPhotosTab extends StatelessWidget {
   final XFile Function(DateTime) getFirstImageForYear;
   final XFile Function(DateTime) getFirstImageForMonth;
   final String currentCategory;
+  final Function() tabController;
 
   const GalleryPhotosTab({
     Key? key,
@@ -33,6 +34,7 @@ class GalleryPhotosTab extends StatelessWidget {
     required this.getFirstImageForYear,
     required this.getFirstImageForMonth,
     required this.currentCategory,
+    required this.tabController,
   }) : super(key: key);
 
   @override
@@ -72,7 +74,9 @@ class GalleryPhotosTab extends StatelessWidget {
                       Icon(Icons.chevron_right, color: Colors.blue, size: 20),
                     ],
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    tabController();
+                  },
                 ),
               ],
             ),
@@ -126,7 +130,9 @@ class GalleryPhotosTab extends StatelessWidget {
                       Icon(Icons.chevron_right, color: Colors.blue, size: 20),
                     ],
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    tabController();
+                  },
                 ),
               ],
             ),

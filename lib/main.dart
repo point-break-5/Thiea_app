@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:thiea_app/screens/cameraScreen/camera_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'auth_controller.dart';
+import 'package:get/get.dart';
 
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
-
+    await Firebase.initializeApp();
+  
+  Get.put(AuthController());
     // Lock the app orientation to portrait
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,

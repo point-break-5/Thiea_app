@@ -57,6 +57,12 @@ dependencies:
   flutter_image_compress: ^2.4.0
   cached_network_image: ^3.4.1
   flutter_spinkit: ^5.2.1
+  firebase_core: ^3.10.0
+  firebase_auth: ^5.4.0
+  cloud_firestore: ^5.6.1
+  get: ^4.6.6
+  google_sign_in: ^6.2.2
+  
 
 dev_dependencies:
   flutter_test:
