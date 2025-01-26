@@ -62,6 +62,7 @@ dependencies:
   cloud_firestore: ^5.6.1
   get: ^4.6.6
   google_sign_in: ^6.2.2
+  wallpaper_manager_flutter: ^0.0.2
   
 
 dev_dependencies:

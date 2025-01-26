@@ -280,6 +280,7 @@ class GalleryManager {
     final allAssets = await recentAlbum.getAssetListPaged(
       page: 0,
       size: pageSize,
+      // size: 50,
     );
 
     if (lastFetched != null) {

@@ -13,7 +13,6 @@ import 'package:thiea_app/screens/imagePreview/image_preview.dart';
 import 'package:exif/exif.dart';
 import 'package:thiea_app/models/image_optimizer.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_util.dart';
-import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_face_recognition.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_places.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_photos.dart';
 import 'package:thiea_app/Authentication/login_screen.dart';
@@ -55,7 +54,6 @@ class _GalleryScreenState extends State<GalleryScreen>
     scrollController.addListener(_handleScroll);
 
     // Load initial data
-    _loadFaceClusters();
     _loadData();
     _initializeGallery();
   }
@@ -85,41 +83,10 @@ class _GalleryScreenState extends State<GalleryScreen>
     print('Known photos: ${_knownPhotos.length}');
     print('New photos: ${newPhotos.length}');
 
-    if (forceProcessFaces || _knownPhotos.isEmpty || newPhotos.isNotEmpty) {
-      print('Triggering face recognition...');
-      await _processFacesForAllPhotos();
-    } else {
-      print('No new photos to process for face recognition.');
-    }
-
     if (mounted) {
       setState(() {
         currentCategory = 'Recent';
         _initializeImages();
-      });
-    }
-  }
-
-  Future<void> _updateFaceClusters() async {
-    if (_faceClustersCalculated) {
-      print('Face clusters are already calculated.');
-      return;
-    }
-
-    setState(() {
-      _isProcessingFaces = true;
-    });
-
-    try {
-      _faceClusters = FaceRecognitionManager.clusterFaces(_allPhotos);
-      print('Face Clusters updated: ${_faceClusters.length} clusters');
-      _faceClustersCalculated = true;
-      await _saveFaceClusters();
-    } catch (e) {
-      print('Error clustering faces: $e');
-    } finally {
-      setState(() {
-        _isProcessingFaces = false;
       });
     }
   }
@@ -157,75 +124,6 @@ class _GalleryScreenState extends State<GalleryScreen>
         await _initializeImagesWithRetry(retryCount - 1);
       }
     }
-  }
-
-  Future<void> _processFacesForAllPhotos() async {
-    setState(() {
-      _isProcessingFaces = true;
-    });
-
-    try {
-      final newPhotos = widget.images
-          .where((img) => !_knownPhotos.contains(img.path))
-          .toList();
-
-      if (newPhotos.isEmpty) {
-        print('No new photos to process.');
-        return;
-      }
-
-      final List<PhotoMetadata> updatedPhotos = [];
-      for (XFile image in newPhotos) {
-        try {
-          final faces = await FaceRecognitionManager.detectFaces(image.path);
-          final existingMetadata = PhotoMetadata(
-            path: image.path,
-            dateTime: File(image.path).lastModifiedSync(),
-            faces: faces,
-          );
-          updatedPhotos.add(existingMetadata);
-          _knownPhotos.add(image.path);
-        } catch (e) {
-          print('Error processing image ${image.path}: $e');
-        }
-      }
-
-      if (updatedPhotos.isNotEmpty) {
-        print('Saving metadata for ${updatedPhotos.length} photos...');
-        final directory = await getExternalStorageDirectory();
-        final String metadataPath =
-            '${directory!.path}/MyCameraApp/metadata.json';
-        final file = File(metadataPath);
-
-        // Convert _allPhotos to a serializable format
-        final List<dynamic> existingMetadata = _allPhotos
-            .map((photo) =>
-                photo.toJson()) // Ensure toJson returns Map<String, dynamic>
-            .toList();
-
-        existingMetadata.addAll(
-          updatedPhotos.map((photo) => photo.toJson()).toList(),
-        );
-
-        await file.writeAsString(json.encode(existingMetadata));
-
-        setState(() {
-          _allPhotos.addAll(updatedPhotos);
-          _faceClustersCalculated = false;
-        });
-      } else {
-        print('No new faces detected.');
-      }
-    } catch (e) {
-      print('Error processing faces: $e');
-    } finally {
-      setState(() {
-        _isProcessingFaces = false;
-      });
-    }
-
-    // Recalculate clusters if needed
-    await _updateFaceClusters();
   }
 
   Future<void> _initializeImages() async {
@@ -412,26 +310,6 @@ class _GalleryScreenState extends State<GalleryScreen>
         _isLoadingMore = false;
       });
     }
-  }
-
-  void _showPersonDetailsScreen(PersonCluster cluster) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PersonDetailsScreen(
-          cluster: cluster,
-          onDeletePhoto: (String photoPath) async {
-            final photo = cluster.photos.firstWhere((p) => p.path == photoPath);
-            final file = XFile(photoPath);
-            final imageWithDate = ImageWithDate(
-              file: file,
-              date: photo.dateTime,
-            );
-            await _deleteImage(imageWithDate);
-          },
-        ),
-      ),
-    );
   }
 
   void _categorizeImages(List<ImageWithDate> images) {
@@ -1217,16 +1095,6 @@ class _GalleryScreenState extends State<GalleryScreen>
                             child: _buildAlbumsTab(),
                           ),
                           Container(
-                            key: const PageStorageKey('people'),
-                            padding: const EdgeInsets.only(top: 16),
-                            child: PeopleTab(
-                              allPhotos: _allPhotos,
-                              faceClusters: _faceClusters,
-                              isProcessingFaces: _isProcessingFaces,
-                              onShowPersonDetails: _showPersonDetailsScreen,
-                            ),
-                          ),
-                          Container(
                             key: const PageStorageKey('places'),
                             child: PlacesTab(
                               allPhotos: _allPhotos,
@@ -1396,72 +1264,6 @@ class _GalleryScreenState extends State<GalleryScreen>
         ),
       ),
     );
-  }
-
-  Future<void> _saveFaceClusters() async {
-    try {
-      final directory = await getExternalStorageDirectory();
-      final String clustersPath =
-          '${directory!.path}/MyCameraApp/clusters.json';
-
-      // Ensure the directory exists
-      final clusterDirectory = Directory('${directory.path}/MyCameraApp');
-      if (!await clusterDirectory.exists()) {
-        await clusterDirectory.create(recursive: true);
-      }
-
-      final file = File(clustersPath);
-
-      // Convert _faceClusters map to a serializable format
-      final List<Map<String, dynamic>> serializedClusters =
-          _faceClusters.entries
-              .map((entry) => {
-                    'key': entry.key,
-                    'values': entry.value,
-                  })
-              .toList(); // Explicitly convert to List
-
-      await file.writeAsString(json.encode(serializedClusters));
-      print('Face clusters saved to disk.');
-    } catch (e) {
-      print('Error saving face clusters: $e');
-    }
-  }
-
-  Future<void> _loadFaceClusters() async {
-    try {
-      final directory = await getExternalStorageDirectory();
-      final String clustersPath =
-          '${directory!.path}/MyCameraApp/clusters.json';
-      final file = File(clustersPath);
-
-      if (await file.exists()) {
-        final String contents = await file.readAsString();
-        final dynamic jsonData = json.decode(contents);
-
-        if (jsonData is List<dynamic>) {
-          _faceClusters = {
-            for (var entry in jsonData)
-              if (entry is Map<String, dynamic>)
-                entry['key'] as String: List<String>.from(entry['values']),
-          };
-        } else if (jsonData is Map<String, dynamic>) {
-          _faceClusters = Map<String, List<String>>.from(jsonData);
-        } else {
-          _faceClusters = {};
-        }
-
-        _faceClustersCalculated = true;
-        print('Face clusters loaded from disk.');
-      } else {
-        _faceClusters = {};
-        await _saveFaceClusters();
-        print('Clusters file not found. Created an empty clusters file.');
-      }
-    } catch (e) {
-      print('Error loading face clusters: $e');
-      _faceClusters = {};
-    }
   }
 
   Future<void> pingController() async {
