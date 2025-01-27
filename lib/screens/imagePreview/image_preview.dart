@@ -41,7 +41,7 @@ class ImageWithMetadata {
 
 class ImagePreviewScreen extends StatefulWidget {
   final ImageWithMetadata image;
-  final bool isFavorite;
+  final Set<String> favoriteImages;
   final Function(ImageWithMetadata) onImageUpdated;
   final VoidCallback onFavoriteToggle;
   final VoidCallback onDelete;
@@ -50,7 +50,7 @@ class ImagePreviewScreen extends StatefulWidget {
   const ImagePreviewScreen({
     Key? key,
     required this.image,
-    required this.isFavorite,
+    required this.favoriteImages,
     required this.onImageUpdated,
     required this.onFavoriteToggle,
     required this.onDelete,
@@ -73,10 +73,12 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   final _captionController = TextEditingController();
   bool _isLoading = false;
   Map<String, String>? _exifData;
+  late bool isFavorite;
 
   @override
   void initState() {
     super.initState();
+    isFavorite = widget.favoriteImages.contains(widget.image.file.path);
     _photoViewController = PhotoViewController()
       ..outputStateStream.listen(_onViewStateChanged);
     _animationController = AnimationController(
@@ -439,10 +441,15 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
               children: [
                 IconButton(
                   icon: Icon(
-                    widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: widget.isFavorite ? Colors.red : Colors.white,
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: isFavorite ? Colors.red : Colors.white,
                   ),
-                  onPressed: widget.onFavoriteToggle,
+                  onPressed: () {
+                    widget.onFavoriteToggle();
+                    setState(() {
+                      isFavorite = !isFavorite;
+                    });
+                  },
                   tooltip: 'Favorite',
                 ),
                 IconButton(

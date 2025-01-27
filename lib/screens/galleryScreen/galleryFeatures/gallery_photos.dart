@@ -23,6 +23,7 @@ class GalleryPhotosTab extends StatelessWidget {
   final bool isSelecting;
   final Function(String) onToggleSelect;
   final Set<String> selectedImages;
+  final Function(DateTime, DateTime) getDateAlbum;
 
   const GalleryPhotosTab({
     Key? key,
@@ -42,6 +43,7 @@ class GalleryPhotosTab extends StatelessWidget {
     required this.isSelecting,
     required this.onToggleSelect,
     required this.selectedImages,
+    required this.getDateAlbum,
   }) : super(key: key);
 
   @override
@@ -251,7 +253,7 @@ class GalleryPhotosTab extends StatelessWidget {
   Widget _buildYearItem(DateTime year) {
     return GestureDetector(
       onTap: () {
-        // Handle navigation to year-specific photos
+        getDateAlbum(DateTime(0), year);
       },
       child: Container(
         width: 90,
@@ -298,57 +300,62 @@ class GalleryPhotosTab extends StatelessWidget {
   }
 
   Widget _buildMonthItem(DateTime month) {
-    return Container(
-      width: 160,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: Colors.grey[900],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.file(
-            File(getFirstImageForMonth(month).path),
-            fit: BoxFit.cover,
-          ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.7),
+    return GestureDetector(
+      onTap: () {
+        getDateAlbum(month, DateTime(0));
+      },
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: Colors.grey[900],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.file(
+              File(getFirstImageForMonth(month).path),
+              fit: BoxFit.cover,
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 12,
+              bottom: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    DateFormat('MMMM').format(month),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    DateFormat('yyyy').format(month),
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
-          Positioned(
-            left: 12,
-            bottom: 12,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  DateFormat('MMMM').format(month),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  DateFormat('yyyy').format(month),
-                  style: TextStyle(
-                    color: Colors.grey[300],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

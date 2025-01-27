@@ -12,6 +12,7 @@ import 'package:thiea_app/models/photo_cluster.dart';
 import 'package:thiea_app/screens/imagePreview/image_preview.dart';
 import 'package:exif/exif.dart';
 import 'package:thiea_app/models/image_optimizer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_util.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_face_recognition.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_places.dart';
@@ -69,8 +70,9 @@ class _GalleryScreenState extends State<GalleryScreen>
       setState(() {
         widget.images.addAll(xFiles);
         currentCategory = 'Recent';
-        _initializeImagesWithRetry();
       });
+      _initializeImagesWithRetry();
+      _loadFavorites(this);
     } catch (e) {
       print("Error initializing gallery: $e");
     }
@@ -87,7 +89,7 @@ class _GalleryScreenState extends State<GalleryScreen>
 
     if (forceProcessFaces || _knownPhotos.isEmpty || newPhotos.isNotEmpty) {
       print('Triggering face recognition...');
-      await _processFacesForAllPhotos();
+      await _processFacesForAllPhotos(this, widget: widget);
     } else {
       print('No new photos to process for face recognition.');
     }
@@ -133,75 +135,6 @@ class _GalleryScreenState extends State<GalleryScreen>
         await _initializeImagesWithRetry(retryCount - 1);
       }
     }
-  }
-
-  Future<void> _processFacesForAllPhotos() async {
-    setState(() {
-      _isProcessingFaces = true;
-    });
-
-    try {
-      final newPhotos = widget.images
-          .where((img) => !_knownPhotos.contains(img.path))
-          .toList();
-
-      if (newPhotos.isEmpty) {
-        print('No new photos to process.');
-        return;
-      }
-
-      final List<PhotoMetadata> updatedPhotos = [];
-      for (XFile image in newPhotos) {
-        try {
-          final faces = await FaceRecognitionManager.detectFaces(image.path);
-          final existingMetadata = PhotoMetadata(
-            path: image.path,
-            dateTime: File(image.path).lastModifiedSync(),
-            faces: faces,
-          );
-          updatedPhotos.add(existingMetadata);
-          _knownPhotos.add(image.path);
-        } catch (e) {
-          print('Error processing image ${image.path}: $e');
-        }
-      }
-
-      if (updatedPhotos.isNotEmpty) {
-        print('Saving metadata for ${updatedPhotos.length} photos...');
-        final directory = await getExternalStorageDirectory();
-        final String metadataPath =
-            '${directory!.path}/MyCameraApp/metadata.json';
-        final file = File(metadataPath);
-
-        // Convert _allPhotos to a serializable format
-        final List<dynamic> existingMetadata = _allPhotos
-            .map((photo) =>
-                photo.toJson()) // Ensure toJson returns Map<String, dynamic>
-            .toList();
-
-        existingMetadata.addAll(
-          updatedPhotos.map((photo) => photo.toJson()).toList(),
-        );
-
-        await file.writeAsString(json.encode(existingMetadata));
-
-        setState(() {
-          _allPhotos.addAll(updatedPhotos);
-          _faceClustersCalculated = false;
-        });
-      } else {
-        print('No new faces detected.');
-      }
-    } catch (e) {
-      print('Error processing faces: $e');
-    } finally {
-      setState(() {
-        _isProcessingFaces = false;
-      });
-    }
-
-    // Recalculate clusters if needed
-    await _updateFaceClusters(this);
   }
 
   Future<void> _initializeImages() async {
@@ -444,8 +377,6 @@ class _GalleryScreenState extends State<GalleryScreen>
       metadata: metadata,
     );
 
-    final isFavorite = favoriteImages.contains(imageWithDate.file.path);
-
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
@@ -453,9 +384,8 @@ class _GalleryScreenState extends State<GalleryScreen>
         pageBuilder: (context, animation, secondaryAnimation) =>
             ImagePreviewScreen(
           image: imageWithMetadata,
-          isFavorite: isFavorite,
+          favoriteImages: favoriteImages,
           onImageUpdated: (updatedImage) {
-            // Handle the updated image
             _handleImageUpdate(updatedImage);
           },
           onFavoriteToggle: () => _toggleFavorite(imageWithDate.file.path),
@@ -558,6 +488,8 @@ class _GalleryScreenState extends State<GalleryScreen>
   }
 
   Future<void> _toggleFavorite(String imagePath) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
     setState(() {
       if (favoriteImages.contains(imagePath)) {
         favoriteImages.remove(imagePath);
@@ -565,7 +497,8 @@ class _GalleryScreenState extends State<GalleryScreen>
         favoriteImages.add(imagePath);
       }
     });
-    // Save updated favorites to storage
+    
+    await prefs.setStringList('favoriteImages', favoriteImages.toList());
   }
 
   Future<void> _shareSelectedImages() async {
@@ -665,7 +598,7 @@ class _GalleryScreenState extends State<GalleryScreen>
         .toSet()
         .toList();
 
-    months.sort((a, b) => b.compareTo(a)); // Latest month first
+    months.sort((a, b) => b.compareTo(a));
     return months;
   }
 
@@ -755,10 +688,11 @@ class _GalleryScreenState extends State<GalleryScreen>
                               getFirstImageForYear: _getFirstImageForYear,
                               getFirstImageForMonth: _getFirstImageForMonth,
                               currentCategory: currentCategory,
-                              tabController: pingController,
+                              tabController: _pingController,
                               isSelecting: isSelecting,
                               onToggleSelect: _toggleSelect,
                               selectedImages: selectedImages,
+                              getDateAlbum: _pingHelper,
                             ),
                           ),
                           Container(
@@ -953,8 +887,22 @@ class _GalleryScreenState extends State<GalleryScreen>
     );
   }
 
-  Future<void> pingController() async {
+  Future<void> _pingController() async {
     _tabController.animateTo(1);
+  }
+
+  void _pingHelper(DateTime month, DateTime year) {
+    setState(() {
+      if (year == DateTime(0)) {
+        currentCategory = DateFormat('MMMM yyyy').format(month);
+      } else {
+        currentCategory = DateFormat('yyyy').format(year);
+      }
+      _loadedImages.clear();
+      _currentPage = 0;
+      _hasMoreImages = true;
+      _loadMoreImages();
+    });
   }
 
   void _toggleSelect(String imagePath) {

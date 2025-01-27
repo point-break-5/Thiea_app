@@ -120,7 +120,9 @@ void _categorizeImages(List<ImageWithDate> images) {
   // Add year-month categories
   for (var image in images) {
     String yearMonth = DateFormat('MMMM yyyy').format(image.date);
+    String justYear = DateFormat('yyyy').format(image.date);
     categorizedImages.putIfAbsent(yearMonth, () => []).add(image);
+    categorizedImages.putIfAbsent(justYear, () => []).add(image);
   }
 
   // Add smart albums
@@ -243,4 +245,84 @@ Future<void> _saveMetadataChanges(ImageWithMetadata updatedImage) async {
       throw Exception('Failed to save metadata changes');
     }
   }
+
+  Future<void> _processFacesForAllPhotos(State state, {required GalleryScreen widget}) async {
+    state.setState(() {
+      _isProcessingFaces = true;
+    });
+
+    try {
+      final newPhotos = widget.images
+          .where((img) => !_knownPhotos.contains(img.path))
+          .toList();
+
+      if (newPhotos.isEmpty) {
+        print('No new photos to process.');
+        return;
+      }
+
+      final List<PhotoMetadata> updatedPhotos = [];
+      for (XFile image in newPhotos) {
+        try {
+          final faces = await FaceRecognitionManager.detectFaces(image.path);
+          final existingMetadata = PhotoMetadata(
+            path: image.path,
+            dateTime: File(image.path).lastModifiedSync(),
+            faces: faces,
+          );
+          updatedPhotos.add(existingMetadata);
+          _knownPhotos.add(image.path);
+        } catch (e) {
+          print('Error processing image ${image.path}: $e');
+        }
+      }
+
+      if (updatedPhotos.isNotEmpty) {
+        print('Saving metadata for ${updatedPhotos.length} photos...');
+        final directory = await getExternalStorageDirectory();
+        final String metadataPath =
+            '${directory!.path}/MyCameraApp/metadata.json';
+        final file = File(metadataPath);
+
+        // Convert _allPhotos to a serializable format
+        final List<dynamic> existingMetadata = _allPhotos
+            .map((photo) =>
+                photo.toJson()) // Ensure toJson returns Map<String, dynamic>
+            .toList();
+
+        existingMetadata.addAll(
+          updatedPhotos.map((photo) => photo.toJson()).toList(),
+        );
+
+        await file.writeAsString(json.encode(existingMetadata));
+
+        state.setState(() {
+          _allPhotos.addAll(updatedPhotos);
+          _faceClustersCalculated = false;
+        });
+      } else {
+        print('No new faces detected.');
+      }
+    } catch (e) {
+      print('Error processing faces: $e');
+    } finally {
+      state.setState(() {
+        _isProcessingFaces = false;
+      });
+    }
+
+    // Recalculate clusters if needed
+    await _updateFaceClusters(state);
+  }
+
+  Future<void> _loadFavorites(State state) async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final List<String>? savedFavorites = prefs.getStringList('favoriteImages');
+
+  state.setState(() {
+    if (savedFavorites != null) {
+      favoriteImages = savedFavorites.toSet();
+    }
+  });
+}
   
