@@ -4,7 +4,7 @@ allprojects {
         mavenCentral()
     }
 
-    // this part is added for the problem "Could not create an instance of type com.android.build.api.variant.impl.LibraryVariantBuilderImpl"
+    // Add this part -------------->
     subprojects {
         afterEvaluate { project ->
             if (project.hasProperty('android')) {
@@ -16,7 +16,7 @@ allprojects {
             }
         }
     }
-    // the part ends here
+    // until here
 }
 
 rootProject.buildDir = "../build"

@@ -1,4 +1,4 @@
-package com.example.flutter_camera_demo_upgraded
+package com.example.untitled
 
 import io.flutter.embedding.android.FlutterActivity
 
