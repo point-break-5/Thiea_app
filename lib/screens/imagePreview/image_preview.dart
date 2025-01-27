@@ -9,6 +9,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:exif/exif.dart';
+import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
 
 class ImageWithDate {
   final XFile file;
@@ -94,7 +95,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       setState(() {
         _exifData = exifData
             .toString()
-            .replaceAll('{', '') 
+            .replaceAll('{', '')
             .replaceAll('}', '')
             .split(',')
             .fold<Map<String, String>>({}, (map, item) {
@@ -423,6 +424,107 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                   color: widget.isFavorite ? Colors.red : Colors.white,
                   onPressed: widget.onFavoriteToggle,
                 ),
+                IconButton(
+                  icon: Icon(Icons.menu),
+                  color: Colors.white,
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              ListTile(
+                                leading: const Icon(Icons.wallpaper),
+                                title: const Text('Set as Wallpaper'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) =>
+                                        AlertDialog(
+                                      title: const Text('Set as Wallpaper'),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          ListTile(
+                                            title: const Text('Home Screen'),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              _setWallpaper(
+                                                  WallpaperManagerFlutter
+                                                      .HOME_SCREEN);
+                                            },
+                                          ),
+                                          ListTile(
+                                            title: const Text('Lock Screen'),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              _setWallpaper(
+                                                  WallpaperManagerFlutter
+                                                      .LOCK_SCREEN);
+                                            },
+                                          ),
+                                          ListTile(
+                                            title: const Text('Both'),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              _setWallpaper(
+                                                  WallpaperManagerFlutter
+                                                      .BOTH_SCREENS);
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.info),
+                                title: const Text('Details'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  // Show image details dialog
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Image Details'),
+                                      content: SingleChildScrollView(
+                                        child: ListBody(
+                                          children: [
+                                            Text(
+                                                'Date: ${DateFormat('MMM d, yyyy').format(widget.image.metadata.date)}'),
+                                            if (widget
+                                                    .image.metadata.location !=
+                                                null)
+                                              Text(
+                                                  'Location: ${widget.image.metadata.location}'),
+                                            if (_exifData != null)
+                                              ..._exifData!.entries.map((e) =>
+                                                  Text('${e.key}: ${e.value}')),
+                                          ],
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text('Close'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                )
               ],
             ),
           ],

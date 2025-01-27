@@ -13,7 +13,6 @@ import 'package:thiea_app/screens/imagePreview/image_preview.dart';
 import 'package:exif/exif.dart';
 import 'package:thiea_app/models/image_optimizer.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_util.dart';
-import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_face_recognition.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_places.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_photos.dart';
 import 'package:thiea_app/Authentication/login_screen.dart';
@@ -55,7 +54,6 @@ class _GalleryScreenState extends State<GalleryScreen>
     scrollController.addListener(_handleScroll);
 
     // Load initial data
-    _loadFaceClusters();
     _loadData();
     _initializeGallery();
   }
@@ -86,13 +84,6 @@ class _GalleryScreenState extends State<GalleryScreen>
         widget.images.where((img) => !_knownPhotos.contains(img.path)).toList();
     print('Known photos: ${_knownPhotos.length}');
     print('New photos: ${newPhotos.length}');
-
-    if (forceProcessFaces || _knownPhotos.isEmpty || newPhotos.isNotEmpty) {
-      print('Triggering face recognition...');
-      await _processFacesForAllPhotos();
-    } else {
-      print('No new photos to process for face recognition.');
-    }
 
     if (mounted) {
       setState(() {
