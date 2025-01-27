@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:ui';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,6 +20,9 @@ class GalleryPhotosTab extends StatelessWidget {
   final XFile Function(DateTime) getFirstImageForMonth;
   final String currentCategory;
   final Function() tabController;
+  final bool isSelecting;
+  final Function(String) onToggleSelect;
+  final Set<String> selectedImages;
 
   const GalleryPhotosTab({
     Key? key,
@@ -35,6 +39,9 @@ class GalleryPhotosTab extends StatelessWidget {
     required this.getFirstImageForMonth,
     required this.currentCategory,
     required this.tabController,
+    required this.isSelecting,
+    required this.onToggleSelect,
+    required this.selectedImages,
   }) : super(key: key);
 
   @override
@@ -204,15 +211,38 @@ class GalleryPhotosTab extends StatelessWidget {
   }
 
   Widget _buildPhotoItem(ImageWithDate image) {
+    final isSelected = selectedImages.contains(image.file.path);
+
     return GestureDetector(
-      onTap: () => onShowImageDetails(image),
+      onTap: () {
+        if (isSelecting) {
+          onToggleSelect(image.file.path);
+        } else {
+          onShowImageDetails(image);
+        }
+      },
       child: Stack(
         fit: StackFit.expand,
         children: [
+          // Display the image
           Image.file(
             File(image.file.path),
             fit: BoxFit.cover,
           ),
+          if (isSelecting)
+            // Add a checkbox for selection
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Checkbox(
+                value: isSelected,
+                onChanged: (value) {
+                  onToggleSelect(image.file.path);
+                },
+                checkColor: Colors.white,
+                activeColor: Colors.blue,
+              ),
+            ),
         ],
       ),
     );

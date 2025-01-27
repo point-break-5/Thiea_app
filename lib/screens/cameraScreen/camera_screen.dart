@@ -656,13 +656,13 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   void _showCaptureConfirmation() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Photo captured!'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   const SnackBar(
+    //     content: Text('Photo captured!'),
+    //     duration: Duration(seconds: 2),
+    //     behavior: SnackBarBehavior.floating,
+    //   ),
+    // );
   }
 
   Future<void> _preprocessPhoto(String filePath) async {

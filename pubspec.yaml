@@ -50,7 +50,7 @@ dependencies:
   flutter_staggered_grid_view: ^0.7.0
   photo_view: ^0.15.0
   photo_manager: ^3.6.3
-  pro_image_editor: ^7.4.0
+  pro_image_editor: ^8.1.0
   google_fonts: ^6.2.1
   exif: ^3.3.0
   flutter_cache_manager: ^3.4.1
@@ -62,7 +62,8 @@ dependencies:
   cloud_firestore: ^5.6.1
   get: ^4.6.6
   google_sign_in: ^6.2.2
-  wallpaper_manager_flutter: ^0.0.2
+  flutter_colorpicker: ^1.0.3
+  # wallpaper_manager_flutter: ^0.0.2
   
 
 dev_dependencies:

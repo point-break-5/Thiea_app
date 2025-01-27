@@ -42,7 +42,6 @@ class GalleryScreen extends StatefulWidget {
 
 class _GalleryScreenState extends State<GalleryScreen>
     with SingleTickerProviderStateMixin {
-
   @override
   void initState() {
     super.initState();
@@ -69,8 +68,8 @@ class _GalleryScreenState extends State<GalleryScreen>
 
       setState(() {
         widget.images.addAll(xFiles);
-        _initializeImagesWithRetry();
         currentCategory = 'Recent';
+        _initializeImagesWithRetry();
       });
     } catch (e) {
       print("Error initializing gallery: $e");
@@ -101,7 +100,7 @@ class _GalleryScreenState extends State<GalleryScreen>
     }
   }
 
-  Future<void> _initializeImagesWithRetry([int retryCount = 3]) async {
+  Future<void> _initializeImagesWithRetry([int retryCount = 2]) async {
     try {
       List<ImageWithDate> imagesWithDates = [];
 
@@ -757,6 +756,9 @@ class _GalleryScreenState extends State<GalleryScreen>
                               getFirstImageForMonth: _getFirstImageForMonth,
                               currentCategory: currentCategory,
                               tabController: pingController,
+                              isSelecting: isSelecting,
+                              onToggleSelect: _toggleSelect,
+                              selectedImages: selectedImages,
                             ),
                           ),
                           Container(
@@ -792,12 +794,10 @@ class _GalleryScreenState extends State<GalleryScreen>
                             60, // Adjust as needed to appear above bottomNavigationBar
                         left: 0,
                         right: 0,
-                        child: _buildBottomBar(
-                          this,
-                          onShareSelectedImages: _shareSelectedImages,
-                          onDeleteSelectedImages: _deleteSelectedImages,
-                          onToggleFavorite: _toggleFavorite
-                        ),
+                        child: _buildBottomBar(this,
+                            onShareSelectedImages: _shareSelectedImages,
+                            onDeleteSelectedImages: _deleteSelectedImages,
+                            onToggleFavorite: _toggleFavorite),
                       ),
                   ],
                 ),
@@ -955,6 +955,16 @@ class _GalleryScreenState extends State<GalleryScreen>
 
   Future<void> pingController() async {
     _tabController.animateTo(1);
+  }
+
+  void _toggleSelect(String imagePath) {
+    setState(() {
+      if (selectedImages.contains(imagePath)) {
+        selectedImages.remove(imagePath);
+      } else {
+        selectedImages.add(imagePath);
+      }
+    });
   }
 
   @override

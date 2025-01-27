@@ -243,3 +243,4 @@ Future<void> _saveMetadataChanges(ImageWithMetadata updatedImage) async {
       throw Exception('Failed to save metadata changes');
     }
   }
+  

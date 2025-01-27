@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
-//import 'package:flutter/foundation.dart';
+
 import 'package:camera/camera.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,7 +9,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:exif/exif.dart';
-import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
+import 'package:thiea_app/screens/imagePreview/drawing_editor.dart';
 
 class ImageWithDate {
   final XFile file;
@@ -152,28 +152,52 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         _editedImage = filteredFile;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error applying filter: $e')),
-      );
+      debugPrint('Error applying filter: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error applying filter: $e')),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _saveEdits() async {
     if (_editedImage != null) {
-      final newImage = ImageWithMetadata(
-        file: XFile(_editedImage!.path),
-        metadata: ImageMetadata(
-          date: widget.image.metadata.date,
-          location: widget.image.metadata.location,
-          exifData: _exifData,
-          caption: _captionController.text,
-        ),
+      try {
+        final newImage = ImageWithMetadata(
+          file: XFile(_editedImage!.path),
+          metadata: ImageMetadata(
+            date: widget.image.metadata.date,
+            location: widget.image.metadata.location,
+            exifData: _exifData,
+            caption: _captionController.text.trim(),
+          ),
+        );
+
+        widget.onImageUpdated(newImage);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Edits saved successfully!')),
+        );
+      } catch (e) {
+        debugPrint('Error saving edits: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save edits: $e')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _isEditing = false);
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No changes to save.')),
       );
-      widget.onImageUpdated(newImage);
     }
-    setState(() => _isEditing = false);
   }
 
   void _showEditingPanel() {
@@ -227,28 +251,29 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                     ],
                   ),
                 ),
-                if (_exifData != null) ...[
-                  const Divider(),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      'EXIF Data',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DrawingScreen(
+                            imagePath: widget.image.file.path,
+                            onSave: (editedImagePath) {
+                              setState(() {
+                                _editedImage = File(editedImagePath);
+                              });
+                              _saveEdits();
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('Edit by Drawing'),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _exifData!.entries
-                          .map((entry) => Chip(
-                                label: Text('${entry.key}: ${entry.value}'),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-                ],
+                ),
                 const SizedBox(height: 16),
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -396,7 +421,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
-                    overflow: TextOverflow.ellipsis, // Prevent text overflow
+                    overflow: TextOverflow.ellipsis,
                   ),
                   if (widget.image.metadata.location != null)
                     Text(
@@ -405,7 +430,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                         color: Colors.white70,
                         fontSize: 14,
                       ),
-                      overflow: TextOverflow.ellipsis, // Prevent text overflow
+                      overflow: TextOverflow.ellipsis,
                     ),
                 ],
               ),
@@ -413,16 +438,12 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.share),
-                  color: Colors.white,
-                  onPressed: widget.onShare,
-                ),
-                IconButton(
                   icon: Icon(
                     widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: widget.isFavorite ? Colors.red : Colors.white,
                   ),
-                  color: widget.isFavorite ? Colors.red : Colors.white,
                   onPressed: widget.onFavoriteToggle,
+                  tooltip: 'Favorite',
                 ),
                 IconButton(
                   icon: Icon(Icons.menu),
@@ -486,24 +507,79 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                                 title: const Text('Details'),
                                 onTap: () {
                                   Navigator.pop(context);
-                                  // Show image details dialog
                                   showDialog(
                                     context: context,
                                     builder: (context) => AlertDialog(
-                                      title: const Text('Image Details'),
+                                      title: const Text(
+                                        'Image Details',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
                                       content: SingleChildScrollView(
-                                        child: ListBody(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
+                                            // Display the image date
                                             Text(
-                                                'Date: ${DateFormat('MMM d, yyyy').format(widget.image.metadata.date)}'),
+                                              '📅 Date: ${DateFormat('MMM d, yyyy').format(widget.image.metadata.date)}',
+                                              style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600),
+                                            ),
+                                            const SizedBox(height: 8),
+
+                                            // Display location if available
                                             if (widget
                                                     .image.metadata.location !=
                                                 null)
                                               Text(
-                                                  'Location: ${widget.image.metadata.location}'),
-                                            if (_exifData != null)
-                                              ..._exifData!.entries.map((e) =>
-                                                  Text('${e.key}: ${e.value}')),
+                                                '📍 Location: ${widget.image.metadata.location}',
+                                                style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight:
+                                                        FontWeight.w600),
+                                              ),
+                                            if (widget
+                                                    .image.metadata.location !=
+                                                null)
+                                              const SizedBox(height: 16),
+
+                                            // EXIF data section
+                                            if (_exifData != null) ...[
+                                              const Divider(),
+                                              const Padding(
+                                                padding: EdgeInsets.symmetric(
+                                                    vertical: 8.0),
+                                                child: Text(
+                                                  'EXIF Data',
+                                                  style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold),
+                                                ),
+                                              ),
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 8,
+                                                children: _exifData!.entries
+                                                    .map(
+                                                      (entry) => Chip(
+                                                        label: Text(
+                                                          '${entry.key}: ${entry.value}',
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize: 14),
+                                                        ),
+                                                        backgroundColor:
+                                                            const Color
+                                                                .fromARGB(255,
+                                                                50, 75, 84),
+                                                      ),
+                                                    )
+                                                    .toList(),
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),
@@ -511,7 +587,12 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                                         TextButton(
                                           onPressed: () =>
                                               Navigator.pop(context),
-                                          child: const Text('Close'),
+                                          child: const Text(
+                                            'Close',
+                                            style: TextStyle(
+                                                color: Colors.blue,
+                                                fontWeight: FontWeight.bold),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -578,14 +659,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                     icon: Icons.share,
                     label: 'Share',
                     onTap: widget.onShare,
-                  ),
-                  _buildActionButton(
-                    icon: widget.isFavorite
-                        ? Icons.favorite
-                        : Icons.favorite_border,
-                    label: 'Favorite',
-                    onTap: widget.onFavoriteToggle,
-                    color: widget.isFavorite ? Colors.red : Colors.white,
                   ),
                   _buildActionButton(
                     icon: Icons.edit,
