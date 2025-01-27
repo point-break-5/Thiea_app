@@ -13,6 +13,7 @@ import 'package:thiea_app/screens/imagePreview/image_preview.dart';
 import 'package:exif/exif.dart';
 import 'package:thiea_app/models/image_optimizer.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_util.dart';
+import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_face_recognition.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_places.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_photos.dart';
 import 'package:thiea_app/Authentication/login_screen.dart';
@@ -41,6 +42,7 @@ class GalleryScreen extends StatefulWidget {
 
 class _GalleryScreenState extends State<GalleryScreen>
     with SingleTickerProviderStateMixin {
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +56,7 @@ class _GalleryScreenState extends State<GalleryScreen>
     scrollController.addListener(_handleScroll);
 
     // Load initial data
+    _loadFaceClusters();
     _loadData();
     _initializeGallery();
   }
@@ -66,11 +69,9 @@ class _GalleryScreenState extends State<GalleryScreen>
 
       setState(() {
         widget.images.addAll(xFiles);
-        currentCategory = "Recent";
+        _initializeImagesWithRetry();
+        currentCategory = 'Recent';
       });
-      
-      _initializeImagesWithRetry();
-      
     } catch (e) {
       print("Error initializing gallery: $e");
     }
@@ -85,6 +86,13 @@ class _GalleryScreenState extends State<GalleryScreen>
     print('Known photos: ${_knownPhotos.length}');
     print('New photos: ${newPhotos.length}');
 
+    if (forceProcessFaces || _knownPhotos.isEmpty || newPhotos.isNotEmpty) {
+      print('Triggering face recognition...');
+      await _processFacesForAllPhotos();
+    } else {
+      print('No new photos to process for face recognition.');
+    }
+
     if (mounted) {
       setState(() {
         currentCategory = 'Recent';
@@ -93,7 +101,7 @@ class _GalleryScreenState extends State<GalleryScreen>
     }
   }
 
-  Future<void> _initializeImagesWithRetry([int retryCount = 2]) async {
+  Future<void> _initializeImagesWithRetry([int retryCount = 3]) async {
     try {
       List<ImageWithDate> imagesWithDates = [];
 
@@ -166,6 +174,7 @@ class _GalleryScreenState extends State<GalleryScreen>
             '${directory!.path}/MyCameraApp/metadata.json';
         final file = File(metadataPath);
 
+        // Convert _allPhotos to a serializable format
         final List<dynamic> existingMetadata = _allPhotos
             .map((photo) =>
                 photo.toJson()) // Ensure toJson returns Map<String, dynamic>
@@ -429,6 +438,7 @@ class _GalleryScreenState extends State<GalleryScreen>
   }
 
   Future<void> _showImageDetails(ImageWithDate imageWithDate) async {
+    // Convert ImageWithDate to ImageWithMetadata
     final metadata = await _createMetadata(imageWithDate);
     final imageWithMetadata = ImageWithMetadata(
       file: imageWithDate.file,
@@ -538,7 +548,6 @@ class _GalleryScreenState extends State<GalleryScreen>
 
       // Save metadata changes
       await _saveMetadataChanges(updatedImage);
-      print('SAVED');
     } catch (e) {
       print('Error handling image update: $e');
       if (mounted) {
@@ -783,10 +792,12 @@ class _GalleryScreenState extends State<GalleryScreen>
                             60, // Adjust as needed to appear above bottomNavigationBar
                         left: 0,
                         right: 0,
-                        child: _buildBottomBar(this,
-                            onShareSelectedImages: _shareSelectedImages,
-                            onDeleteSelectedImages: _deleteSelectedImages,
-                            onToggleFavorite: _toggleFavorite),
+                        child: _buildBottomBar(
+                          this,
+                          onShareSelectedImages: _shareSelectedImages,
+                          onDeleteSelectedImages: _deleteSelectedImages,
+                          onToggleFavorite: _toggleFavorite
+                        ),
                       ),
                   ],
                 ),

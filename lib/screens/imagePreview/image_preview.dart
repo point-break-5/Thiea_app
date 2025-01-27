@@ -451,28 +451,28 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                                           ListTile(
                                             title: const Text('Home Screen'),
                                             onTap: () {
-                                              Navigator.pop(context);
-                                              _setWallpaper(
-                                                  WallpaperManagerFlutter
-                                                      .HOME_SCREEN);
+                                              // Navigator.pop(context);
+                                              // _setWallpaper(
+                                              //     WallpaperManagerFlutter
+                                              //         .HOME_SCREEN);
                                             },
                                           ),
                                           ListTile(
                                             title: const Text('Lock Screen'),
                                             onTap: () {
                                               Navigator.pop(context);
-                                              _setWallpaper(
-                                                  WallpaperManagerFlutter
-                                                      .LOCK_SCREEN);
+                                              // _setWallpaper(
+                                              //     WallpaperManagerFlutter
+                                              //         .LOCK_SCREEN);
                                             },
                                           ),
                                           ListTile(
                                             title: const Text('Both'),
                                             onTap: () {
                                               Navigator.pop(context);
-                                              _setWallpaper(
-                                                  WallpaperManagerFlutter
-                                                      .BOTH_SCREENS);
+                                              // _setWallpaper(
+                                              //     WallpaperManagerFlutter
+                                              //         .BOTH_SCREENS);
                                             },
                                           ),
                                         ],
