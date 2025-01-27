@@ -30,3 +30,4 @@ final List<String> viewTabs = ['Photos', 'Albums', 'People', 'Places'];
 Set<String> _knownPhotos = {};
 Map<String, List<String>> _faceClusters = {};
 bool _faceClustersCalculated = false;
+const int _pageSize = 20;

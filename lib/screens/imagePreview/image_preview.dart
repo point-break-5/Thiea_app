@@ -493,7 +493,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                   _buildActionButton(
                     icon: Icons.delete,
                     label: 'Delete',
-                    onTap: () => _showDeleteConfirmation(),
+                    onTap: () => widget.onDelete(),
                     color: Colors.red,
                   ),
                 ],
@@ -501,30 +501,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showDeleteConfirmation() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Image'),
-        content: const Text(
-            'Are you sure you want to delete this image? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              widget.onDelete();
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
       ),
     );
   }

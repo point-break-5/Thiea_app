@@ -19,6 +19,8 @@ import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_photos.d
 import 'package:thiea_app/Authentication/login_screen.dart';
 
 part 'gallery_screen_constants.dart';
+part 'gallery_widgets.dart';
+part 'gallery_helpers.dart';
 
 class GalleryScreen extends StatefulWidget {
   final List<XFile> images;
@@ -40,8 +42,6 @@ class GalleryScreen extends StatefulWidget {
 
 class _GalleryScreenState extends State<GalleryScreen>
     with SingleTickerProviderStateMixin {
-  static const int _pageSize = 30;
-
   @override
   void initState() {
     super.initState();
@@ -68,16 +68,18 @@ class _GalleryScreenState extends State<GalleryScreen>
 
       setState(() {
         widget.images.addAll(xFiles);
-        _initializeImagesWithRetry();
-        currentCategory = 'Recent';
+        currentCategory = "Recent";
       });
+      
+      _initializeImagesWithRetry();
+      
     } catch (e) {
       print("Error initializing gallery: $e");
     }
   }
 
   Future<void> _loadData({bool forceProcessFaces = false}) async {
-    await _loadMetadata();
+    await _loadMetadata(this);
     await _loadPreferences();
 
     final newPhotos =
@@ -100,31 +102,7 @@ class _GalleryScreenState extends State<GalleryScreen>
     }
   }
 
-  Future<void> _updateFaceClusters() async {
-    if (_faceClustersCalculated) {
-      print('Face clusters are already calculated.');
-      return;
-    }
-
-    setState(() {
-      _isProcessingFaces = true;
-    });
-
-    try {
-      _faceClusters = FaceRecognitionManager.clusterFaces(_allPhotos);
-      print('Face Clusters updated: ${_faceClusters.length} clusters');
-      _faceClustersCalculated = true;
-      await _saveFaceClusters();
-    } catch (e) {
-      print('Error clustering faces: $e');
-    } finally {
-      setState(() {
-        _isProcessingFaces = false;
-      });
-    }
-  }
-
-  Future<void> _initializeImagesWithRetry([int retryCount = 3]) async {
+  Future<void> _initializeImagesWithRetry([int retryCount = 2]) async {
     try {
       List<ImageWithDate> imagesWithDates = [];
 
@@ -197,7 +175,6 @@ class _GalleryScreenState extends State<GalleryScreen>
             '${directory!.path}/MyCameraApp/metadata.json';
         final file = File(metadataPath);
 
-        // Convert _allPhotos to a serializable format
         final List<dynamic> existingMetadata = _allPhotos
             .map((photo) =>
                 photo.toJson()) // Ensure toJson returns Map<String, dynamic>
@@ -225,7 +202,7 @@ class _GalleryScreenState extends State<GalleryScreen>
     }
 
     // Recalculate clusters if needed
-    await _updateFaceClusters();
+    await _updateFaceClusters(this);
   }
 
   Future<void> _initializeImages() async {
@@ -237,30 +214,6 @@ class _GalleryScreenState extends State<GalleryScreen>
     _sortImagesByCurrentSettings(imagesWithDates);
     _categorizeImages(imagesWithDates);
     await _loadMoreImages();
-  }
-
-  void _sortImagesByCurrentSettings(List<ImageWithDate> images) {
-    switch (sortBy) {
-      case 'date':
-        images.sort((a, b) => sortAscending
-            ? a.date.compareTo(b.date)
-            : b.date.compareTo(a.date));
-        break;
-      case 'name':
-        images.sort((a, b) => sortAscending
-            ? path.basename(a.file.path).compareTo(path.basename(b.file.path))
-            : path.basename(b.file.path).compareTo(path.basename(a.file.path)));
-        break;
-      case 'size':
-        images.sort((a, b) {
-          int sizeA = File(a.file.path).lengthSync();
-          int sizeB = File(b.file.path).lengthSync();
-          return sortAscending
-              ? sizeA.compareTo(sizeB)
-              : sizeB.compareTo(sizeA);
-        });
-        break;
-    }
   }
 
   Future<void> _deleteMetadata(String imagePath) async {
@@ -434,34 +387,6 @@ class _GalleryScreenState extends State<GalleryScreen>
     );
   }
 
-  void _categorizeImages(List<ImageWithDate> images) {
-    // Reset categories
-    categorizedImages = {
-      'Recent': images.take(30).toList(),
-      'Favorites': images
-          .where((img) => favoriteImages.contains(img.file.path))
-          .toList(),
-      'All Photos': images,
-    };
-
-    // Add year-month categories
-    for (var image in images) {
-      String yearMonth = DateFormat('MMMM yyyy').format(image.date);
-      categorizedImages.putIfAbsent(yearMonth, () => []).add(image);
-    }
-
-    // Add smart albums
-    categorizedImages['Screenshots'] = images
-        .where((img) =>
-            path.basename(img.file.path).toLowerCase().contains('screenshot'))
-        .toList();
-
-    categorizedImages['Videos'] = images
-        .where((img) => ['mp4', 'mov', '3gp']
-            .contains(path.extension(img.file.path).toLowerCase()))
-        .toList();
-  }
-
   void _showLocationCluster(String clusterKey, List<PhotoMetadata> photos) {
     Navigator.push(
       context,
@@ -490,7 +415,7 @@ class _GalleryScreenState extends State<GalleryScreen>
       if (searchController.text.isEmpty) {
         _initializeImages();
       } else {
-        _performSearch(searchController.text);
+        _performSearch(searchController.text, this, widget);
       }
     });
   }
@@ -512,112 +437,7 @@ class _GalleryScreenState extends State<GalleryScreen>
     });
   }
 
-  Widget _buildAlbumsTab() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
-      itemCount: categorizedImages.length,
-      itemBuilder: (context, index) {
-        final category = categorizedImages.keys.elementAt(index);
-        final images = categorizedImages[category]!;
-        if (images.isEmpty) return const SizedBox.shrink();
-
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              currentCategory = category;
-              _loadedImages.clear();
-              _currentPage = 0;
-              _hasMoreImages = true;
-              _loadMoreImages();
-              _tabController.animateTo(0); // Switch to Photos tab
-            });
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[800]!),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.file(
-                  File(images.first.file.path),
-                  fit: BoxFit.cover,
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.7),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 12,
-                  bottom: 12,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        category,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '${images.length} items',
-                        style: TextStyle(
-                          color: Colors.grey[300],
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _performSearch(String query) {
-    setState(() {
-      filteredImages = widget.images
-          .map((file) => ImageWithDate(
-                file: file,
-                date: File(file.path).lastModifiedSync(),
-              ))
-          .where((img) =>
-              path
-                  .basename(img.file.path)
-                  .toLowerCase()
-                  .contains(query.toLowerCase()) ||
-              DateFormat('MMMM yyyy')
-                  .format(img.date)
-                  .toLowerCase()
-                  .contains(query.toLowerCase()))
-          .toList();
-    });
-  }
-
   Future<void> _showImageDetails(ImageWithDate imageWithDate) async {
-    // Convert ImageWithDate to ImageWithMetadata
     final metadata = await _createMetadata(imageWithDate);
     final imageWithMetadata = ImageWithMetadata(
       file: imageWithDate.file,
@@ -693,78 +513,6 @@ class _GalleryScreenState extends State<GalleryScreen>
     );
   }
 
-  Future<void> _loadMetadata() async {
-    try {
-      final directory = await getExternalStorageDirectory();
-      final String metadataPath =
-          '${directory!.path}/MyCameraApp/metadata.json';
-      final file = File(metadataPath);
-
-      if (await file.exists()) {
-        final String contents = await file.readAsString();
-        final List<dynamic> jsonList = json.decode(contents);
-
-        setState(() {
-          _allPhotos =
-              jsonList.map((json) => PhotoMetadata.fromJson(json)).toList();
-          _knownPhotos = _allPhotos.map((photo) => photo.path).toSet();
-        });
-
-        print('Metadata loaded: ${_allPhotos.length} photos'); // Debug
-      }
-    } catch (e) {
-      print('Error loading metadata: $e');
-    }
-  }
-
-  Future<ImageMetadata> _createMetadata(ImageWithDate imageWithDate) async {
-    String? location;
-    Map<String, String> exifMap = {};
-
-    try {
-      exifMap = await _loadExifData(imageWithDate.file.path);
-      if (location != null) {
-        debugPrint('Location for file ${imageWithDate.file.path}: $location');
-      } else {
-        debugPrint(
-            'No location available for file: ${imageWithDate.file.path}');
-      }
-      return ImageMetadata(
-        date: imageWithDate.date,
-        location: location,
-        exifData: exifMap,
-        caption: null,
-      );
-    } catch (e) {
-      debugPrint('Error creating metadata: $e');
-      return ImageMetadata(
-        date: imageWithDate.date,
-        location: null,
-        exifData: null,
-        caption: null,
-      );
-    }
-  }
-
-  Future<Map<String, String>> _loadExifData(String filePath) async {
-    try {
-      final bytes = await File(filePath).readAsBytes();
-      final exifData = await readExifFromBytes(bytes);
-
-      return exifData.toString().split(',').fold<Map<String, String>>({},
-          (map, item) {
-        final parts = item.split('=');
-        if (parts.length == 2) {
-          map[parts[0].trim()] = parts[1].trim();
-        }
-        return map;
-      });
-    } catch (e) {
-      debugPrint('Error loading EXIF data: $e');
-      return {}; // Return an empty map in case of error
-    }
-  }
-
   void _handleImageUpdate(ImageWithMetadata updatedImage) async {
     try {
       // Update the image in your state
@@ -799,6 +547,7 @@ class _GalleryScreenState extends State<GalleryScreen>
 
       // Save metadata changes
       await _saveMetadataChanges(updatedImage);
+      print('SAVED');
     } catch (e) {
       print('Error handling image update: $e');
       if (mounted) {
@@ -806,44 +555,6 @@ class _GalleryScreenState extends State<GalleryScreen>
           SnackBar(content: Text('Error updating image: $e')),
         );
       }
-    }
-  }
-
-  Future<void> _saveMetadataChanges(ImageWithMetadata updatedImage) async {
-    try {
-      final directory = await getExternalStorageDirectory();
-      final String metadataPath =
-          '${directory!.path}/MyCameraApp/metadata.json';
-      final file = File(metadataPath);
-
-      List<dynamic> metadata = [];
-      if (await file.exists()) {
-        final contents = await file.readAsString();
-        metadata = json.decode(contents);
-      }
-
-      // Find and update or add new metadata
-      final index =
-          metadata.indexWhere((item) => item['path'] == updatedImage.file.path);
-
-      final newMetadata = {
-        'path': updatedImage.file.path,
-        'date': updatedImage.metadata.date.toIso8601String(),
-        'location': updatedImage.metadata.location,
-        'caption': updatedImage.metadata.caption,
-        'exifData': updatedImage.metadata.exifData,
-      };
-
-      if (index != -1) {
-        metadata[index] = newMetadata;
-      } else {
-        metadata.add(newMetadata);
-      }
-
-      await file.writeAsString(json.encode(metadata));
-    } catch (e) {
-      print('Error saving metadata changes: $e');
-      throw Exception('Failed to save metadata changes');
     }
   }
 
@@ -933,175 +644,6 @@ class _GalleryScreenState extends State<GalleryScreen>
     }
   }
 
-  Widget _buildSearchBar() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      height: isSearching ? 56 : 0,
-      child: Container(
-        color: Colors.grey[900],
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Focus(
-                onFocusChange: (hasFocus) {
-                  if (!hasFocus && mounted) {
-                    setState(() {
-                      isSearching = false;
-                    });
-                  }
-                },
-                child: TextField(
-                  controller: searchController,
-                  autofocus: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Search photos...',
-                    hintStyle: TextStyle(color: Colors.grey[400]),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[800],
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: Colors.grey[400],
-                    ),
-                    suffixIcon: searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(
-                              Icons.clear,
-                              color: Colors.grey[400],
-                            ),
-                            onPressed: () {
-                              if (mounted) {
-                                setState(() {
-                                  searchController.clear();
-                                  _initializeImages();
-                                });
-                              }
-                            },
-                          )
-                        : null,
-                  ),
-                  onChanged: (value) {
-                    if (mounted) {
-                      setState(() {
-                        if (value.isEmpty) {
-                          _initializeImages();
-                        } else {
-                          _performSearch(value);
-                        }
-                      });
-                    }
-                  },
-                  onSubmitted: (value) {
-                    if (mounted) {
-                      _performSearch(value);
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            TextButton(
-              onPressed: () {
-                if (mounted) {
-                  setState(() {
-                    isSearching = false;
-                    searchController.clear();
-                    _initializeImages();
-                  });
-                }
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.blue,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    if (isSelecting) {
-      return Transform.translate(
-        offset: const Offset(0, 0),
-        child: Container(
-          color: Colors.black,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: SafeArea(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Display the number of selected images
-                Text(
-                  '${selectedImages.length} Selected',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Row(
-                  children: [
-                    // Share Button
-                    IconButton(
-                      icon: const Icon(Icons.share_rounded),
-                      onPressed:
-                          selectedImages.isEmpty ? null : _shareSelectedImages,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 20),
-                    // Favorite Button
-                    IconButton(
-                      icon: const Icon(Icons.favorite_border),
-                      onPressed: selectedImages.isEmpty
-                          ? null
-                          : () {
-                              for (var imagePath in selectedImages) {
-                                _toggleFavorite(imagePath);
-                              }
-                              setState(() {
-                                isSelecting = false;
-                                selectedImages.clear();
-                              });
-                            },
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 20),
-                    // Delete Button
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed:
-                          selectedImages.isEmpty ? null : _deleteSelectedImages,
-                      color: Colors.red,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-    return const SizedBox.shrink();
-  }
-
   List<DateTime> _getYears() {
     final years = widget.images
         .map((file) {
@@ -1183,7 +725,12 @@ class _GalleryScreenState extends State<GalleryScreen>
                       Padding(
                         padding: const EdgeInsets.only(
                             top: 70), // Lower the search bar
-                        child: _buildSearchBar(),
+                        child: _buildSearchBar(
+                          this,
+                          onInitializeImages: _initializeImages,
+                          mounted: mounted,
+                          widget: widget,
+                        ),
                       ),
 
                     Expanded(
@@ -1214,7 +761,10 @@ class _GalleryScreenState extends State<GalleryScreen>
                           ),
                           Container(
                             key: const PageStorageKey('albums'),
-                            child: _buildAlbumsTab(),
+                            child: _buildAlbumsTab(
+                              this,
+                              onLoadMoreImages: _loadMoreImages,
+                            ),
                           ),
                           Container(
                             key: const PageStorageKey('people'),
@@ -1242,7 +792,10 @@ class _GalleryScreenState extends State<GalleryScreen>
                             60, // Adjust as needed to appear above bottomNavigationBar
                         left: 0,
                         right: 0,
-                        child: _buildBottomBar(),
+                        child: _buildBottomBar(this,
+                            onShareSelectedImages: _shareSelectedImages,
+                            onDeleteSelectedImages: _deleteSelectedImages,
+                            onToggleFavorite: _toggleFavorite),
                       ),
                   ],
                 ),
@@ -1398,72 +951,6 @@ class _GalleryScreenState extends State<GalleryScreen>
     );
   }
 
-  Future<void> _saveFaceClusters() async {
-    try {
-      final directory = await getExternalStorageDirectory();
-      final String clustersPath =
-          '${directory!.path}/MyCameraApp/clusters.json';
-
-      // Ensure the directory exists
-      final clusterDirectory = Directory('${directory.path}/MyCameraApp');
-      if (!await clusterDirectory.exists()) {
-        await clusterDirectory.create(recursive: true);
-      }
-
-      final file = File(clustersPath);
-
-      // Convert _faceClusters map to a serializable format
-      final List<Map<String, dynamic>> serializedClusters =
-          _faceClusters.entries
-              .map((entry) => {
-                    'key': entry.key,
-                    'values': entry.value,
-                  })
-              .toList(); // Explicitly convert to List
-
-      await file.writeAsString(json.encode(serializedClusters));
-      print('Face clusters saved to disk.');
-    } catch (e) {
-      print('Error saving face clusters: $e');
-    }
-  }
-
-  Future<void> _loadFaceClusters() async {
-    try {
-      final directory = await getExternalStorageDirectory();
-      final String clustersPath =
-          '${directory!.path}/MyCameraApp/clusters.json';
-      final file = File(clustersPath);
-
-      if (await file.exists()) {
-        final String contents = await file.readAsString();
-        final dynamic jsonData = json.decode(contents);
-
-        if (jsonData is List<dynamic>) {
-          _faceClusters = {
-            for (var entry in jsonData)
-              if (entry is Map<String, dynamic>)
-                entry['key'] as String: List<String>.from(entry['values']),
-          };
-        } else if (jsonData is Map<String, dynamic>) {
-          _faceClusters = Map<String, List<String>>.from(jsonData);
-        } else {
-          _faceClusters = {};
-        }
-
-        _faceClustersCalculated = true;
-        print('Face clusters loaded from disk.');
-      } else {
-        _faceClusters = {};
-        await _saveFaceClusters();
-        print('Clusters file not found. Created an empty clusters file.');
-      }
-    } catch (e) {
-      print('Error loading face clusters: $e');
-      _faceClusters = {};
-    }
-  }
-
   Future<void> pingController() async {
     _tabController.animateTo(1);
   }
@@ -1478,21 +965,3 @@ class _GalleryScreenState extends State<GalleryScreen>
     super.dispose();
   }
 }
-
-// void _showPersonPhotos(List<String> faceIds) {
-  //   final personPhotos = _allPhotos
-  //       .where((photo) => photo.faces.any((face) => faceIds.contains(face.id)))
-  //       .toList();
-  //
-  //   Navigator.push(
-  //     context,
-  //     MaterialPageRoute(
-  //       builder: (context) => GalleryScreen(
-  //         images: personPhotos.map((p) => XFile(p.path)).toList(),
-  //         onDelete: widget.onDelete,
-  //         onShare: widget.onShare, // Add this
-  //         onInfo: widget.onInfo, // Add this
-  //       ),
-  //     ),
-  //   );
-  // }
