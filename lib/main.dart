@@ -1,41 +1,45 @@
+import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:video_player/video_player.dart';
-import 'package:video_player_platform_interface/video_player_platform_interface.dart';
-import 'package:video_player_android/video_player_android.dart';
-
-import './CommonHeader.dart';
-
-import 'screens/camera_screen/camera_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:thiea_app/screens/cameraScreen/camera_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'auth_controller.dart';
+import 'package:get/get.dart';
 
 Future<void> main() async {
-
-  WidgetsFlutterBinding.ensureInitialized();
-  // VideoPlayerPlatform.instance = VideoPlayerAndroid();
-
-
   try {
     WidgetsFlutterBinding.ensureInitialized();
-    final cameras = await availableCameras();
+    await Firebase.initializeApp();
+  
+  Get.put(AuthController());
+    // Lock the app orientation to portrait
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
 
-    // if (cameras.isEmpty) {
-    //   runApp(
-    //     MaterialApp(
-    //       debugShowCheckedModeBanner: false,
-    //       theme: ThemeData.dark(),
-    //       home: const Scaffold(
-    //         body: Center(
-    //           child: Text(
-    //             'No cameras found on this device',
-    //             style: TextStyle(color: Colors.white),
-    //           ),
-    //         ),
-    //       ),
-    //     ),
-    //   );
-    //   return;
-    // }
+    final List<CameraDescription> cameras = await availableCameras();
 
-    runApp(MyApp(cameras: cameras));
+    if (cameras.isEmpty) {
+      runApp(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: const Scaffold(
+            body: Center(
+              child: Text('No cameras found on this device'),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    runApp(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        debugShowCheckedModeBanner: false,
+        home: CameraScreen(cameras: cameras),
+      ),
+    );
   } catch (e) {
     print('Error initializing camera: $e');
     runApp(
@@ -43,41 +47,10 @@ Future<void> main() async {
         theme: ThemeData.dark(),
         home: Scaffold(
           body: Center(
-            child: Text(
-              'Error initializing camera: $e',
-              style: const TextStyle(color: Colors.white),
-              textAlign: TextAlign.center,
-            ),
+            child: Text('Error initializing camera: $e'),
           ),
         ),
       ),
-    );
-  }
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key, required this.cameras});
-
-  final List<CameraDescription> cameras;
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      routes: {
-        '/cameraScreen': (context) => CameraScreen(cameras: cameras),
-        '/galleryPreview': (context) => const GalleryPreview(),
-        '/homeScreen': (context) => const HomeScreen(),
-        '/homeScreen/aboutUs': (context) => AboutUs(),
-        '/authWrapper': (context) => const AuthWrapper(),
-        '/authWrapper/logIn': (context) => const Login(),
-        '/authWrapper/signUp': (context) => const Signup(),
-      },
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.grey,
-        useMaterial3: true,
-      ),
-      home: CameraScreen(cameras: cameras),
     );
   }
 }
