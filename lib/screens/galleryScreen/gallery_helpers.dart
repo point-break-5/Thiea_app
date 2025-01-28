@@ -49,7 +49,7 @@ Future<void> _loadFaceClusters() async {
       } else {
         _faceClusters = {};
       }
-      
+
       _faceClustersCalculated = true;
       print('Face clusters loaded from disk.');
     } else {
@@ -146,13 +146,11 @@ Future<void> _loadMetadata(State state) async {
     if (await file.exists()) {
       final String contents = await file.readAsString();
       final List<dynamic> jsonList = json.decode(contents);
-
       state.setState(() {
         _allPhotos =
             jsonList.map((json) => PhotoMetadata.fromJson(json)).toList();
         _knownPhotos = _allPhotos.map((photo) => photo.path).toSet();
       });
-
       print('Metadata loaded: ${_allPhotos.length} photos'); // Debug
     }
   } catch (e) {
@@ -160,162 +158,189 @@ Future<void> _loadMetadata(State state) async {
   }
 }
 
-Future<ImageMetadata> _createMetadata(ImageWithDate imageWithDate) async {
+Future<ImageMetadata?> _createMetadata(ImageWithDate imageWithDate) async {
+  Map<String, String> exifMap = await _loadExifData(imageWithDate.file.path);
+  PhotoMetadata defaultData = PhotoMetadata(
+    path: imageWithDate.file.path,
+    dateTime: imageWithDate.date,
+    location: null, 
+    placeName: null,
+    subLocality: null, 
+    filter: null, 
+    faces: [], 
+  );
+
+  try {
+    final existingMetadata = _allPhotos.firstWhere(
+      (photo) => photo.path == imageWithDate.file.path,
+      orElse: () => defaultData,
+    );
+
+    if (existingMetadata != defaultData) {
+      debugPrint(
+          'Using existing metadata for file: ${imageWithDate.file.path}');
+      ImageMetadata temp = ImageMetadata(
+        date: existingMetadata.dateTime,
+        location: existingMetadata.location != null
+            ? '${existingMetadata.location!.latitude}, ${existingMetadata.location!.longitude}'
+            : null, 
+        exifData: exifMap, 
+        caption: null,
+        placeName : existingMetadata.placeName ?? 'PlaceHolder',
+        subLocation: existingMetadata.subLocality ?? 'PlaceHolder',
+      );
+      print(existingMetadata.subLocality);
+      return temp; 
+    } else {
+      debugPrint(
+          'No existing metadata found for file: ${imageWithDate.file.path}');
+    }
     String? location;
-    Map<String, String> exifMap = {};
 
-    try {
-      exifMap = await _loadExifData(imageWithDate.file.path);
-      if (location != null) {
-        debugPrint('Location for file ${imageWithDate.file.path}: $location');
-      } else {
-        debugPrint(
-            'No location available for file: ${imageWithDate.file.path}');
+    if (location != null) {
+      debugPrint('Location for file ${imageWithDate.file.path}: $location');
+    } else {
+      debugPrint('No location available for file: ${imageWithDate.file.path}');
+    }
+
+    return ImageMetadata(
+      date: imageWithDate.date,
+      location: location,
+      exifData: exifMap,
+      caption: null,
+    );
+  } catch (e) {
+    debugPrint('Error creating metadata: $e');
+    return null;
+  }
+}
+
+Future<Map<String, String>> _loadExifData(String filePath) async {
+  try {
+    final bytes = await File(filePath).readAsBytes();
+    final exifData = await readExifFromBytes(bytes);
+
+    return exifData.toString().split(',').fold<Map<String, String>>({},
+        (map, item) {
+      final parts = item.split('=');
+      if (parts.length == 2) {
+        map[parts[0].trim()] = parts[1].trim();
       }
-      return ImageMetadata(
-        date: imageWithDate.date,
-        location: location,
-        exifData: exifMap,
-        caption: null,
-      );
-    } catch (e) {
-      debugPrint('Error creating metadata: $e');
-      return ImageMetadata(
-        date: imageWithDate.date,
-        location: null,
-        exifData: null,
-        caption: null,
-      );
-    }
+      return map;
+    });
+  } catch (e) {
+    debugPrint('Error loading EXIF data: $e');
+    return {}; // Return an empty map in case of error
   }
-
-  Future<Map<String, String>> _loadExifData(String filePath) async {
-    try {
-      final bytes = await File(filePath).readAsBytes();
-      final exifData = await readExifFromBytes(bytes);
-
-      return exifData.toString().split(',').fold<Map<String, String>>({},
-          (map, item) {
-        final parts = item.split('=');
-        if (parts.length == 2) {
-          map[parts[0].trim()] = parts[1].trim();
-        }
-        return map;
-      });
-    } catch (e) {
-      debugPrint('Error loading EXIF data: $e');
-      return {}; // Return an empty map in case of error
-    }
-  }
+}
 
 Future<void> _saveMetadataChanges(ImageWithMetadata updatedImage) async {
-    try {
+  try {
+    final directory = await getExternalStorageDirectory();
+    final String metadataPath = '${directory!.path}/MyCameraApp/metadata.json';
+    final file = File(metadataPath);
+
+    List<dynamic> metadata = [];
+    if (await file.exists()) {
+      final contents = await file.readAsString();
+      metadata = json.decode(contents);
+    }
+
+    // Find and update or add new metadata
+    final index =
+        metadata.indexWhere((item) => item['path'] == updatedImage.file.path);
+
+    final newMetadata = {
+      'path': updatedImage.file.path,
+      'date': updatedImage.metadata.date.toIso8601String(),
+      'location': updatedImage.metadata.location,
+      'caption': updatedImage.metadata.caption,
+      'exifData': updatedImage.metadata.exifData,
+    };
+
+    if (index != -1) {
+      metadata[index] = newMetadata;
+    } else {
+      metadata.add(newMetadata);
+    }
+
+    await file.writeAsString(json.encode(metadata));
+  } catch (e) {
+    print('Error saving metadata changes: $e');
+    throw Exception('Failed to save metadata changes');
+  }
+}
+
+Future<void> _processFacesForAllPhotos(State state,
+    {required GalleryScreen widget}) async {
+  state.setState(() {
+    _isProcessingFaces = true;
+  });
+
+  try {
+    final newPhotos =
+        widget.images.where((img) => !_knownPhotos.contains(img.path)).toList();
+
+    if (newPhotos.isEmpty) {
+      print('No new photos to process.');
+      return;
+    }
+
+    final List<PhotoMetadata> updatedPhotos = [];
+    for (XFile image in newPhotos) {
+      try {
+        final faces = await FaceRecognitionManager.detectFaces(image.path);
+        final existingMetadata = PhotoMetadata(
+          path: image.path,
+          dateTime: File(image.path).lastModifiedSync(),
+          faces: faces,
+        );
+        updatedPhotos.add(existingMetadata);
+        _knownPhotos.add(image.path);
+      } catch (e) {
+        print('Error processing image ${image.path}: $e');
+      }
+    }
+
+    if (updatedPhotos.isNotEmpty) {
+      print('Saving metadata for ${updatedPhotos.length} photos...');
       final directory = await getExternalStorageDirectory();
       final String metadataPath =
           '${directory!.path}/MyCameraApp/metadata.json';
       final file = File(metadataPath);
 
-      List<dynamic> metadata = [];
-      if (await file.exists()) {
-        final contents = await file.readAsString();
-        metadata = json.decode(contents);
-      }
-
-      // Find and update or add new metadata
-      final index =
-          metadata.indexWhere((item) => item['path'] == updatedImage.file.path);
-
-      final newMetadata = {
-        'path': updatedImage.file.path,
-        'date': updatedImage.metadata.date.toIso8601String(),
-        'location': updatedImage.metadata.location,
-        'caption': updatedImage.metadata.caption,
-        'exifData': updatedImage.metadata.exifData,
-      };
-
-      if (index != -1) {
-        metadata[index] = newMetadata;
-      } else {
-        metadata.add(newMetadata);
-      }
-
-      await file.writeAsString(json.encode(metadata));
-    } catch (e) {
-      print('Error saving metadata changes: $e');
-      throw Exception('Failed to save metadata changes');
-    }
-  }
-
-  Future<void> _processFacesForAllPhotos(State state, {required GalleryScreen widget}) async {
-    state.setState(() {
-      _isProcessingFaces = true;
-    });
-
-    try {
-      final newPhotos = widget.images
-          .where((img) => !_knownPhotos.contains(img.path))
+      // Convert _allPhotos to a serializable format
+      final List<dynamic> existingMetadata = _allPhotos
+          .map((photo) =>
+              photo.toJson()) // Ensure toJson returns Map<String, dynamic>
           .toList();
 
-      if (newPhotos.isEmpty) {
-        print('No new photos to process.');
-        return;
-      }
+      existingMetadata.addAll(
+        updatedPhotos.map((photo) => photo.toJson()).toList(),
+      );
 
-      final List<PhotoMetadata> updatedPhotos = [];
-      for (XFile image in newPhotos) {
-        try {
-          final faces = await FaceRecognitionManager.detectFaces(image.path);
-          final existingMetadata = PhotoMetadata(
-            path: image.path,
-            dateTime: File(image.path).lastModifiedSync(),
-            faces: faces,
-          );
-          updatedPhotos.add(existingMetadata);
-          _knownPhotos.add(image.path);
-        } catch (e) {
-          print('Error processing image ${image.path}: $e');
-        }
-      }
+      await file.writeAsString(json.encode(existingMetadata));
 
-      if (updatedPhotos.isNotEmpty) {
-        print('Saving metadata for ${updatedPhotos.length} photos...');
-        final directory = await getExternalStorageDirectory();
-        final String metadataPath =
-            '${directory!.path}/MyCameraApp/metadata.json';
-        final file = File(metadataPath);
-
-        // Convert _allPhotos to a serializable format
-        final List<dynamic> existingMetadata = _allPhotos
-            .map((photo) =>
-                photo.toJson()) // Ensure toJson returns Map<String, dynamic>
-            .toList();
-
-        existingMetadata.addAll(
-          updatedPhotos.map((photo) => photo.toJson()).toList(),
-        );
-
-        await file.writeAsString(json.encode(existingMetadata));
-
-        state.setState(() {
-          _allPhotos.addAll(updatedPhotos);
-          _faceClustersCalculated = false;
-        });
-      } else {
-        print('No new faces detected.');
-      }
-    } catch (e) {
-      print('Error processing faces: $e');
-    } finally {
       state.setState(() {
-        _isProcessingFaces = false;
+        _allPhotos.addAll(updatedPhotos);
+        _faceClustersCalculated = false;
       });
+    } else {
+      print('No new faces detected.');
     }
-
-    // Recalculate clusters if needed
-    await _updateFaceClusters(state);
+  } catch (e) {
+    print('Error processing faces: $e');
+  } finally {
+    state.setState(() {
+      _isProcessingFaces = false;
+    });
   }
 
-  Future<void> _loadFavorites(State state) async {
+  // Recalculate clusters if needed
+  await _updateFaceClusters(state);
+}
+
+Future<void> _loadFavorites(State state) async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   final List<String>? savedFavorites = prefs.getStringList('favoriteImages');
 
@@ -325,4 +350,3 @@ Future<void> _saveMetadataChanges(ImageWithMetadata updatedImage) async {
     }
   });
 }
-  

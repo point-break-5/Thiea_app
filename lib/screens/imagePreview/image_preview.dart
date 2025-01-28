@@ -23,12 +23,16 @@ class ImageMetadata {
   final String? location;
   final Map<String, String>? exifData;
   final String? caption;
+  String subLocation;
+  String placeName;
 
   ImageMetadata({
     required this.date,
     this.location,
     this.exifData,
     this.caption,
+    this.placeName = "PlaceHolder",
+    this.subLocation = "PlaceHolder",
   });
 }
 
@@ -425,15 +429,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (widget.image.metadata.location != null)
-                    Text(
-                      widget.image.metadata.location!,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
                 ],
               ),
             ),
@@ -453,7 +448,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                   tooltip: 'Favorite',
                 ),
                 IconButton(
-                  icon: Icon(Icons.menu),
+                  icon: const Icon(Icons.menu),
                   color: Colors.white,
                   onPressed: () {
                     showModalBottomSheet(
@@ -478,30 +473,15 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                                         children: [
                                           ListTile(
                                             title: const Text('Home Screen'),
-                                            onTap: () {
-                                              // Navigator.pop(context);
-                                              // _setWallpaper(
-                                              //     WallpaperManagerFlutter
-                                              //         .HOME_SCREEN);
-                                            },
+                                            onTap: () {},
                                           ),
                                           ListTile(
                                             title: const Text('Lock Screen'),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              // _setWallpaper(
-                                              //     WallpaperManagerFlutter
-                                              //         .LOCK_SCREEN);
-                                            },
+                                            onTap: () {},
                                           ),
                                           ListTile(
                                             title: const Text('Both'),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              // _setWallpaper(
-                                              //     WallpaperManagerFlutter
-                                              //         .BOTH_SCREENS);
-                                            },
+                                            onTap: () {},
                                           ),
                                         ],
                                       ),
@@ -527,7 +507,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            // Display the image date
+                                            // Date Section
                                             Text(
                                               '📅 Date: ${DateFormat('MMM d, yyyy').format(widget.image.metadata.date)}',
                                               style: const TextStyle(
@@ -536,23 +516,73 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                                             ),
                                             const SizedBox(height: 8),
 
-                                            // Display location if available
+                                            // Location Section
                                             if (widget
                                                     .image.metadata.location !=
                                                 null)
-                                              Text(
-                                                '📍 Location: ${widget.image.metadata.location}',
-                                                style: const TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight:
-                                                        FontWeight.w600),
-                                              ),
-                                            if (widget
-                                                    .image.metadata.location !=
-                                                null)
-                                              const SizedBox(height: 16),
+                                              Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Divider(),
+                                                  const Padding(
+                                                    padding:
+                                                        EdgeInsets.symmetric(
+                                                            vertical: 8.0),
+                                                    child: Text(
+                                                      '📍 Location Information',
+                                                      style: TextStyle(
+                                                          fontSize: 18,
+                                                          fontWeight:
+                                                              FontWeight.bold),
+                                                    ),
+                                                  ),
+                                                  if (widget.image.metadata
+                                                          .location!
+                                                          .contains(',') &&
+                                                      widget.image.metadata
+                                                              .subLocation ==
+                                                          "PlaceHolder")
+                                                    Text(
+                                                      'Location: ${widget.image.metadata.placeName ?? 'Unknown Location'}\nLatitude: ${widget.image.metadata.location!.split(',')[0].trim()}\nLongitude: ${widget.image.metadata.location!.split(',')[1].trim()}',
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                        color: Colors.grey,
+                                                      ),
+                                                    ),
 
-                                            // EXIF data section
+                                                  // Sublocality Check
+                                                  if (widget.image.metadata
+                                                          .subLocation !=
+                                                      "PlaceHolder")
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                              top: 8.0),
+                                                      child: Text(
+                                                        'Location: ${widget.image.metadata.placeName ?? 'Unknown Location'}\nSub-Locality: ${widget.image.metadata.subLocation!.split(',')[2]}\nPostal Code: ${widget.image.metadata.subLocation!.split(',')[3]}\nStreet: ${widget.image.metadata.subLocation!.split(',')[1]}\nBuilding: ${widget.image.metadata.subLocation!.split(',')[0]}\nLatitude: ${widget.image.metadata.location!.split(',')[0].trim()}\nLongitude: ${widget.image.metadata.location!.split(',')[1].trim()}',
+                                                        style: const TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight:
+                                                              FontWeight.w400,
+                                                          color: Colors.grey,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              )
+                                            else
+                                              const Text(
+                                                '📍 Location: Not Available',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+
+                                            // EXIF Data Section
                                             if (_exifData != null) ...[
                                               const Divider(),
                                               const Padding(

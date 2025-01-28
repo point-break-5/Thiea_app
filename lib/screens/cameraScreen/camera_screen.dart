@@ -656,32 +656,36 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   void _showCaptureConfirmation() {
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   const SnackBar(
-    //     content: Text('Photo captured!'),
-    //     duration: Duration(seconds: 2),
-    //     behavior: SnackBarBehavior.floating,
-    //   ),
-    // );
+    OverlayEntry? overlayEntry;
+    overlayEntry = OverlayEntry(
+      builder: (context) => Container(
+        color: Colors.white.withOpacity(0.7),
+      ),
+    );
+
+    Overlay.of(context)?.insert(overlayEntry);
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      overlayEntry?.remove();
+    });
   }
 
   Future<void> _preprocessPhoto(String filePath) async {
     try {
       final location = await _getCurrentLocation();
       String? placeName;
+      String? subLocality;
       if (location != null) {
         placeName = await _getPlaceName(location);
+        subLocality = await _getSubLocality(location);
       }
-
       final metadata = PhotoMetadata(
         path: filePath,
         dateTime: DateTime.now(),
         location: location,
         placeName: placeName,
+        subLocality: subLocality,
       );
-
-      // Optionally, you can add face detection here using google_mlkit_face_detection
-
       await _saveMetadata(metadata);
     } catch (e) {
       print('Error preprocessing photo: $e');
@@ -693,7 +697,6 @@ class _CameraScreenState extends State<CameraScreen>
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-
       return Location(
         latitude: position.latitude,
         longitude: position.longitude,
@@ -711,9 +714,9 @@ class _CameraScreenState extends State<CameraScreen>
         location.latitude,
         location.longitude,
       );
-
       if (placemarks.isNotEmpty) {
         geocoding.Placemark place = placemarks.first;
+        //print(place);
         return '${place.locality}, ${place.country}';
       }
     } catch (e) {
@@ -722,10 +725,28 @@ class _CameraScreenState extends State<CameraScreen>
     return null;
   }
 
+  Future<String?> _getSubLocality(Location location) async {
+    try {
+      List<geocoding.Placemark> placemarks =
+          await geocoding.placemarkFromCoordinates(
+        location.latitude,
+        location.longitude,
+      );
+      if (placemarks.isNotEmpty) {
+        geocoding.Placemark place = placemarks.first;
+        return '${place.name}, ${place.street}, ${place.subLocality}, ${place.postalCode}';
+      }
+    } catch (e) {
+      print('Error getting sublocality name: $e');
+    }
+    return null;
+  }
+
   Future<void> _saveMetadata(PhotoMetadata metadata) async {
     try {
-      final String dirPath = await _localPath;
-      final metadataFile = File('$dirPath/metadata.json');
+      final directory = await getExternalStorageDirectory();
+      final String metadataPath = '${directory!.path}/MyCameraApp/metadata.json';
+      final metadataFile = File(metadataPath);
 
       List<Map<String, dynamic>> existingMetadata = [];
       if (await metadataFile.exists()) {
@@ -827,4 +848,35 @@ class _CameraScreenState extends State<CameraScreen>
       });
     }
   }
+
+  // void _readMeta() async {
+  //   try {
+  //     // Get the directory path
+  //     final String dirPath = await _localPath;
+  //     final metadataFile = File('$dirPath/metadata.json');
+  //     // Initialize metadata list
+  //     List<Map<String, dynamic>> existingMetadata = [];
+  //     // Check if the metadata file exists
+  //     if (await metadataFile.exists()) {
+  //       // Read and parse the metadata file
+  //       final String content = await metadataFile.readAsString();
+  //       existingMetadata =
+  //           List<Map<String, dynamic>>.from(json.decode(content));
+  //     }
+  //     // Process metadata to extract location and other fields
+  //     for (var meta in existingMetadata) {
+  //       if (meta.containsKey('location') && meta['location'] != null) {
+  //         final location = meta['location'];
+  //         final double latitude = location['latitude'];
+  //         final double longitude = location['longitude'];
+  //         final String name = meta['placeName'];
+  //         print('Location: Latitude $latitude, Longitude $longitude, Name: $name');
+  //       } else {
+  //         print('No location data available for this metadata entry.');
+  //       }
+  //     }
+  //   } catch (e) {
+  //     print('Error reading metadata: $e');
+  //   }
+  // }
 }

@@ -371,7 +371,13 @@ class _GalleryScreenState extends State<GalleryScreen>
 
   Future<void> _showImageDetails(ImageWithDate imageWithDate) async {
     // Convert ImageWithDate to ImageWithMetadata
-    final metadata = await _createMetadata(imageWithDate);
+    final metadata = await _createMetadata(imageWithDate) ??
+        ImageMetadata(
+          date: imageWithDate.date,
+          location: null,
+          exifData: {}, // Default to an empty map
+          caption: null, // Default caption
+        );
     final imageWithMetadata = ImageWithMetadata(
       file: imageWithDate.file,
       metadata: metadata,
@@ -497,7 +503,7 @@ class _GalleryScreenState extends State<GalleryScreen>
         favoriteImages.add(imagePath);
       }
     });
-    
+
     await prefs.setStringList('favoriteImages', favoriteImages.toList());
   }
 
