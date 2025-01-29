@@ -19,6 +19,8 @@ import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_face_rec
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_places.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_photos.dart';
 import 'package:thiea_app/Authentication/login_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../aboutScreen/about_screen.dart';
 
 part 'gallery_screen_constants.dart';
 part 'gallery_widgets.dart';
@@ -66,11 +68,9 @@ class _GalleryScreenState extends State<GalleryScreen>
     try {
       final assets = await _galleryManager.fetchGalleryImages();
 
-
-      final xFiles = 
+      final xFiles =
           await Future.wait(assets.map(_galleryManager.convertAssetToXFile));
 
-      
       print(xFiles.length); // checking
 
       // First, sync with the database
@@ -819,7 +819,7 @@ class _GalleryScreenState extends State<GalleryScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    "Library",
+                                    "Photos",
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 22,
@@ -840,6 +840,7 @@ class _GalleryScreenState extends State<GalleryScreen>
                               // Action buttons
                               Row(
                                 children: [
+                                  // Search Button
                                   Container(
                                     width: 30,
                                     height: 30,
@@ -861,6 +862,7 @@ class _GalleryScreenState extends State<GalleryScreen>
                                     ),
                                   ),
                                   const SizedBox(width: 8),
+                                  // Select Button
                                   Container(
                                     width: 50,
                                     height: 30,
@@ -893,6 +895,7 @@ class _GalleryScreenState extends State<GalleryScreen>
                                     ),
                                   ),
                                   const SizedBox(width: 8),
+                                  // Profile Button
                                   Container(
                                     width: 38,
                                     height: 38,
@@ -951,9 +954,68 @@ class _GalleryScreenState extends State<GalleryScreen>
           ),
           tabs: viewTabs.map((tab) => Tab(text: tab)).toList(),
         ),
+        // About the app
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) {
+                return Dialog(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Container(
+                        color: Colors.white.withOpacity(0.2),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Thiea App',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Divider(color: Colors.white60),
+                            const SizedBox(height: 8),
+                            Column(
+                              children: [
+                                ...developers.map((dev) => Column(
+                                  children: [
+                                    buildInfoCard(
+                                      context,
+                                      imagePath: dev.imagePath,
+                                      name: dev.name,
+                                      githubLink: dev.githubLink, 
+                                      linkedinLink: dev.linkedinLink,
+                                    ),
+                                    const SizedBox(height: 16),
+                                  ],
+                                )).toList(),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+          child: const Icon(Icons.info),
+        ),
       ),
     );
   }
+
+  
 
   Future<void> _pingController() async {
     _tabController.animateTo(1);
