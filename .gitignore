@@ -1,0 +1,102 @@
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Backend (FastAPI)
+# Python bytecode files
+*.py[cod]
+__pycache__/
+*.so
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Flask or FastAPI debug files
+instance/
+*.sqlite3
+*.db
+
+# Logs
+*.log
+
+# Pytest cache
+.pytest_cache/
+
+# Mypy type checking cache
+.mypy_cache/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# IDE-specific files
+.idea/
+*.vscode/
+
+# Testing and coverage
+htmlcov/
+.tox/
+.coverage
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# pipenv
+Pipfile
+Pipfile.lock
+
+# Poetry
+poetry.lock
+poetry.toml
+
+# MacOS
+.DS_Store
+
+# Temporary files
+*.tmp
+
+# Docker-specific ignores
+# Avoid including sensitive files and build-related directories
+.dockerignore
+docker-compose.override.yml
+.docker-compose.override.yml
+
+# Exclude local dev tools
+.docker/
+docker-compose.override.yml
+
+# Ignore build context artifacts
+**/build/
+**/dist/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# Ignore any temporary Docker container files
+*.pid
+
+# Exclude database files and backups
+*.sql
+*.sqlite3
+db_data/
+
+# Optional logs
+*.log
+logs/
+
+# Temporary Docker storage
+/tmp/
+
+# Pictures
+*.jpg
