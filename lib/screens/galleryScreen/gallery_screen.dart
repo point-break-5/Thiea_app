@@ -91,6 +91,8 @@ class _GalleryScreenState extends State<GalleryScreen>
   Future<void> _syncDevicePhotosWithDatabase(List<XFile> devicePhotos) async {
     final db = await GalleryDatabase.database;
 
+    print(devicePhotos.length); // checking
+
     for (final photo in devicePhotos) {
       final existing = await db.query(
         'photos',

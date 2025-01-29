@@ -32,7 +32,7 @@ class GalleryDatabase {
 
         await db.execute('''
           CREATE TABLE IF NOT EXISTS faces (
-            face_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            face_id INTEGER PRIMARY KEY,
             face_name TEXT
           )
         ''');

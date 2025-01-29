@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:animated_toggle_switch/animated_toggle_switch.dart';
 import 'package:animations/animations.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:thiea_app/screens/galleryScreen/gallery_screen.dart' as gallery;
 import 'cameraFeatures/grid_painter.dart';
 import 'package:intl/intl.dart';
@@ -29,6 +32,8 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen>
     with WidgetsBindingObserver {
+  DateTime? _recordingStartTime;
+
   @override
   void initState() {
     super.initState();
@@ -96,24 +101,83 @@ class _CameraScreenState extends State<CameraScreen>
             else
               const Center(child: CircularProgressIndicator()),
             Positioned(
+              // top bar controls
               top: 0,
               left: 0,
               right: 0,
               child: _buildControls(),
             ),
             Positioned(
+              // bottom bar controls
               bottom: 0,
               left: 0,
               right: 0,
               child: Container(
                 padding: const EdgeInsets.all(16),
                 color: Colors.black54,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                child: Column(
                   children: [
-                    _buildGalleryButton(),
-                    _buildCaptureButton(),
-                    _buildCameraSwitchButton(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AnimatedToggleSwitch<bool>.dual(
+                          current: isPhotoMode,
+                          first: true,
+                          second: false,
+                          spacing: 20.0,
+                          style: ToggleStyle(
+                            backgroundColor: Colors.black45,
+                            borderColor: Colors.white24,
+                            borderRadius: BorderRadius.circular(20.0),
+                            indicatorColor: Colors.blue,
+                          ),
+                          animationDuration: const Duration(milliseconds: 200),
+                          onChanged: (mode) =>
+                              setState(() => isPhotoMode = mode),
+                          iconBuilder: (value) => Icon(
+                            value ? Icons.camera_alt : Icons.videocam,
+                            color: Colors.white,
+                          ),
+                          textBuilder: (value) => value
+                              ? const Text('Photo',
+                                  style: TextStyle(color: Colors.white))
+                              : const Text('Video',
+                                  style: TextStyle(color: Colors.white)),
+                        ),
+                        if (isVideoRecording) Row(
+                            children: [
+                            const SizedBox(width: 20),
+                            StreamBuilder(
+                              stream: Stream.periodic(const Duration(seconds: 1)),
+                              builder: (context, snapshot) {
+                              final duration = DateTime.now().difference(
+                                _recordingStartTime ?? DateTime.now()
+                              );
+                              final displayDuration = Duration(seconds: duration.inSeconds);
+                              return Text(
+                                '${displayDuration.inMinutes.toString().padLeft(2, '0')}:${(displayDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+                                style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                ),
+                              );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildGalleryButton(),
+                        _buildCaptureButton(),
+                        _buildCameraSwitchButton(),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -634,8 +698,24 @@ class _CameraScreenState extends State<CameraScreen>
         setState(() {
           isPressed = false;
         });
-        if (!isTimerActive) {
-          _takePictureWithTimer();
+        if (isPhotoMode) {
+          if (!isTimerActive) {
+            _takePictureWithTimer();
+          }
+        } else {
+          // implementing video capture functionalities
+
+          if (isVideoRecording) {
+            setState(() {
+              isVideoRecording = false;
+            });
+            _stopRecordingVideoAndSave();
+          } else {
+            setState(() {
+              isVideoRecording = true;
+            });
+            _startRecordingVideo();
+          }
         }
       },
       onTapCancel: () {
@@ -643,7 +723,8 @@ class _CameraScreenState extends State<CameraScreen>
           isPressed = false;
         });
       },
-      child: Container(
+      child: AnimatedContainer(
+        duration: Duration(microseconds: 2000),
         width: 80,
         height: 80,
         decoration: BoxDecoration(
@@ -656,13 +737,47 @@ class _CameraScreenState extends State<CameraScreen>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 100),
           margin: EdgeInsets.all(isPressed ? 10 : 6),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white,
+            color: (isPhotoMode ? Colors.white : Colors.red),
           ),
+          child: isVideoRecording
+              ? Center(
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                )
+              : null,
         ),
       ),
     );
+  }
+
+  Future<void> _startRecordingVideo() async{
+    try {
+      await _controller!.startVideoRecording();
+    } catch (e) {
+      print('Error starting video recording: $e');
+    }
+  } 
+
+  Future<void> _stopRecordingVideoAndSave() async{
+    try {
+      final XFile? videoFile = await _controller!.stopVideoRecording();
+      // Handle the saved video file here
+      final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      final String dirPath = await _localPath;
+      final String filePath = '$dirPath/VID_$timestamp.mp4';
+      videoFile?.saveTo(filePath);
+
+    } catch (e) {
+      print('Error stopping video recording: $e');
+    }
   }
   // Widget _buildCaptureButton() {
   //   return GestureDetector(
@@ -840,7 +955,8 @@ class _CameraScreenState extends State<CameraScreen>
   Future<void> _saveMetadata(PhotoMetadata metadata) async {
     try {
       final directory = await getExternalStorageDirectory();
-      final String metadataPath = '${directory!.path}/MyCameraApp/metadata.json';
+      final String metadataPath =
+          '${directory!.path}/MyCameraApp/metadata.json';
       final metadataFile = File(metadataPath);
 
       List<Map<String, dynamic>> existingMetadata = [];
@@ -906,7 +1022,7 @@ class _CameraScreenState extends State<CameraScreen>
       final controller = CameraController(
         widget.cameras[cameraIndex],
         ResolutionPreset.max,
-        enableAudio: false,
+        enableAudio: true,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
 

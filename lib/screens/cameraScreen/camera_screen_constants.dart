@@ -22,4 +22,8 @@ CameraController? _controller;
   ExposureMode exposureMode = ExposureMode.auto;
   FocusMode focusMode = FocusMode.auto;
   final String appFolderName = 'MyCameraScreen';
+  bool isPhotoMode = true;
+  bool isVideoRecording = false;
+
+  Timer? videoRecordingTimer;
 
