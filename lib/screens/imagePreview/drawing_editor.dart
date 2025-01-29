@@ -1,10 +1,11 @@
-import 'dart:typed_data'; // Import for ByteData and Uint8List
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:intl/intl.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart'; // Import for BlockPicker
+import 'package:share_plus/share_plus.dart';
+import 'package:thiea_app/screens/imagePreview/image_preview.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 class DrawingScreen extends StatefulWidget {
   final String imagePath;
@@ -27,7 +28,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
   Color _selectedColor = Colors.red; // Default drawing color
   double _strokeWidth = 4.0; // Default stroke width
 
-  /// Saves the drawing by capturing the widget tree within RepaintBoundary
+  
   Future<void> _saveDrawing() async {
     try {
       // Access the RepaintBoundary
@@ -50,9 +51,20 @@ class _DrawingScreenState extends State<DrawingScreen> {
       final File file = File(widget.imagePath);
       await file.writeAsBytes(pngBytes);
 
-      // Invoke the callback with the same file path
-      widget.onSave(widget.imagePath);
-      Navigator.pop(context);
+      // Create updated image metadata
+      final updatedImage = ImageWithMetadata(
+        file: XFile(file.path),
+        metadata: ImageMetadata(
+          date: DateTime.now(), // Use current date for update
+        ),
+      );
+
+      // Invoke the callback with the updated image
+      widget.onSave(file.path);
+
+      // Return the updated image to the parent for handling
+      Navigator.pop(context, updatedImage); // Pop from Drawing Screen
+      Navigator.pop(context, updatedImage); // Pop from Image Preview Screen
     } catch (e) {
       debugPrint('Error saving drawing: $e');
       ScaffoldMessenger.of(context).showSnackBar(

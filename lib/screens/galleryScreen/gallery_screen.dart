@@ -320,25 +320,25 @@ class _GalleryScreenState extends State<GalleryScreen>
   }
 
   void _showLocationCluster(String clusterKey, List<PhotoMetadata> photos) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => LocationDetailsScreen(
-        clusterKey: clusterKey,
-        photos: photos,
-        onDeletePhoto: (String photoPath) async {
-          final photo = photos.firstWhere((p) => p.path == photoPath);
-          final file = XFile(photoPath);
-          final imageWithDate = ImageWithDate(
-            file: file,
-            date: photo.dateTime,
-          );
-          await _deleteImage(imageWithDate);
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationDetailsScreen(
+          clusterKey: clusterKey,
+          photos: photos,
+          onDeletePhoto: (String photoPath) async {
+            final photo = photos.firstWhere((p) => p.path == photoPath);
+            final file = XFile(photoPath);
+            final imageWithDate = ImageWithDate(
+              file: file,
+              date: photo.dateTime,
+            );
+            await _deleteImage(imageWithDate);
+          },
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Future<void> _loadPreferences() async {
     // Load saved preferences like favorites, view settings, etc.
@@ -385,12 +385,14 @@ class _GalleryScreenState extends State<GalleryScreen>
           exifData: {}, // Default to an empty map
           caption: null, // Default caption
         );
+
     final imageWithMetadata = ImageWithMetadata(
       file: imageWithDate.file,
       metadata: metadata,
     );
 
-    Navigator.of(context).push(
+    // Await the result from ImagePreviewScreen
+    final updatedImage = await Navigator.of(context).push<ImageWithMetadata>(
       PageRouteBuilder(
         opaque: false,
         barrierColor: Colors.black.withOpacity(0.95),
@@ -398,9 +400,7 @@ class _GalleryScreenState extends State<GalleryScreen>
             ImagePreviewScreen(
           image: imageWithMetadata,
           favoriteImages: favoriteImages,
-          onImageUpdated: (updatedImage) {
-            _handleImageUpdate(updatedImage);
-          },
+          onImageUpdated: _handleImageUpdate, // Pass directly
           onFavoriteToggle: () => _toggleFavorite(imageWithDate.file.path),
           onDelete: () async {
             final confirmed = await showDialog<bool>(
@@ -454,19 +454,22 @@ class _GalleryScreenState extends State<GalleryScreen>
         },
       ),
     );
+
+    // If an image was updated, refresh UI
+    if (updatedImage != null) {
+      _handleImageUpdate(updatedImage);
+    }
   }
 
   void _handleImageUpdate(ImageWithMetadata updatedImage) async {
     try {
-      // Update the image in your state
       setState(() {
-        // Update in loaded images
+        // Update the image in _loadedImages
         for (var category in _loadedImages.keys) {
           final index = _loadedImages[category]?.indexWhere(
             (img) => img.file.path == updatedImage.file.path,
           );
           if (index != null && index != -1) {
-            final oldImage = _loadedImages[category]![index];
             _loadedImages[category]![index] = ImageWithDate(
               file: updatedImage.file,
               date: updatedImage.metadata.date,
@@ -474,7 +477,7 @@ class _GalleryScreenState extends State<GalleryScreen>
           }
         }
 
-        // Update in categorized images
+        // Update the image in categorizedImages
         for (var category in categorizedImages.keys) {
           final index = categorizedImages[category]?.indexWhere(
             (img) => img.file.path == updatedImage.file.path,
@@ -488,7 +491,7 @@ class _GalleryScreenState extends State<GalleryScreen>
         }
       });
 
-      // Save metadata changes
+      // Persist changes
       await _saveMetadataChanges(updatedImage);
     } catch (e) {
       print('Error handling image update: $e');

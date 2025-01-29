@@ -716,7 +716,7 @@ class _CameraScreenState extends State<CameraScreen>
       );
       if (placemarks.isNotEmpty) {
         geocoding.Placemark place = placemarks.first;
-        //print(place);
+        print(place);
         return '${place.locality}, ${place.country}';
       }
     } catch (e) {
@@ -755,7 +755,6 @@ class _CameraScreenState extends State<CameraScreen>
           json.decode(content),
         );
       }
-
       existingMetadata.add(metadata.toJson());
       await metadataFile.writeAsString(json.encode(existingMetadata));
     } catch (e) {

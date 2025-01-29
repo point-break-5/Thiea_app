@@ -178,7 +178,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         final updatedFile = File(widget.image.file.path);
         await updatedFile.writeAsBytes(await _editedImage!.readAsBytes());
 
-        final newImage = ImageWithMetadata(
+        final updatedImage = ImageWithMetadata(
           file: XFile(updatedFile.path),
           metadata: ImageMetadata(
             date: widget.image.metadata.date,
@@ -188,15 +188,19 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
           ),
         );
 
-        widget.onImageUpdated(newImage);
+        // Notify the parent about the updated image
+        widget.onImageUpdated(updatedImage);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Edits saved successfully!')),
         );
 
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        // Delay before closing the screen
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            Navigator.pop(context, updatedImage); // Return updated image
+          }
+        });
       } catch (e) {
         debugPrint('Error saving edits: $e');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -211,6 +215,13 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No changes to save.')),
       );
+
+      // Return to parent without an update
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          Navigator.pop(context, null);
+        }
+      });
     }
   }
 
