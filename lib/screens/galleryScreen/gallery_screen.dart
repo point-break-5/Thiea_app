@@ -65,8 +65,13 @@ class _GalleryScreenState extends State<GalleryScreen>
   Future<void> _initializeGallery() async {
     try {
       final assets = await _galleryManager.fetchGalleryImages();
-      final xFiles =
+
+
+      final xFiles = 
           await Future.wait(assets.map(_galleryManager.convertAssetToXFile));
+
+      
+      print(xFiles.length); // checking
 
       // First, sync with the database
       await _syncDevicePhotosWithDatabase(xFiles);
