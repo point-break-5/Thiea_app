@@ -147,20 +147,19 @@ class _CameraScreenState extends State<CameraScreen>
                         if (isVideoRecording) Row(
                             children: [
                             const SizedBox(width: 20),
-                            StreamBuilder(
-                              stream: Stream.periodic(const Duration(seconds: 1)),
+                            StreamBuilder<int>(
+                              stream: Stream.periodic(const Duration(seconds: 1), (count) => count),
                               builder: (context, snapshot) {
-                              final duration = DateTime.now().difference(
-                                _recordingStartTime ?? DateTime.now()
-                              );
-                              final displayDuration = Duration(seconds: duration.inSeconds);
-                              return Text(
-                                '${displayDuration.inMinutes.toString().padLeft(2, '0')}:${(displayDuration.inSeconds % 60).toString().padLeft(2, '0')}',
-                                style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                ),
-                              );
+                                final startTime = _recordingStartTime ?? DateTime.now();
+                                final duration = DateTime.now().difference(startTime);
+                                final displayDuration = Duration(seconds: duration.inSeconds);
+                                return Text(
+                                  '${displayDuration.inMinutes.toString().padLeft(2, '0')}:${(displayDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                );
                               },
                             ),
                           ],
@@ -758,17 +757,25 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
-  Future<void> _startRecordingVideo() async{
+  Future<void> _startRecordingVideo() async {
     try {
+      setState(() {
+        isVideoRecording = true;
+        _recordingStartTime = DateTime.now(); // Start the timer here
+      });
       await _controller!.startVideoRecording();
     } catch (e) {
       print('Error starting video recording: $e');
     }
-  } 
+  }
 
-  Future<void> _stopRecordingVideoAndSave() async{
+  Future<void> _stopRecordingVideoAndSave() async {
     try {
       final XFile? videoFile = await _controller!.stopVideoRecording();
+      setState(() {
+        isVideoRecording = false;
+        _recordingStartTime = null; // Reset the timer here
+      });
       // Handle the saved video file here
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final String dirPath = await _localPath;
