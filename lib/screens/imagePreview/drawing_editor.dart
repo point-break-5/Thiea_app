@@ -2,7 +2,6 @@ import 'dart:typed_data'; // Import for ByteData and Uint8List
 import 'dart:ui' as ui;
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart'; // Import for BlockPicker
@@ -32,31 +31,27 @@ class _DrawingScreenState extends State<DrawingScreen> {
   Future<void> _saveDrawing() async {
     try {
       // Access the RepaintBoundary
-      final boundary =
-          _canvasKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      final boundary = _canvasKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
       if (boundary == null) {
         throw Exception('Unable to find render boundary.');
       }
 
-      // Capture the image as a JPEG
+      // Capture the image as a PNG
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       final ByteData? byteData =
           await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) {
         throw Exception('Failed to convert image to byte data.');
       }
-      final Uint8List jpegBytes = byteData.buffer.asUint8List();
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
 
-      // Generate a unique file name using timestamp
-      final String timestamp =
-          DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final directory = await getTemporaryDirectory();
-      final String filePath = '${directory.path}/edited_image_$timestamp.jpg';
-      final File file = File(filePath);
-      await file.writeAsBytes(jpegBytes);
+      // Overwrite the existing image file
+      final File file = File(widget.imagePath);
+      await file.writeAsBytes(pngBytes);
 
-      // Invoke the callback with the saved file path
-      widget.onSave(filePath);
+      // Invoke the callback with the same file path
+      widget.onSave(widget.imagePath);
       Navigator.pop(context);
     } catch (e) {
       debugPrint('Error saving drawing: $e');
@@ -94,7 +89,8 @@ class _DrawingScreenState extends State<DrawingScreen> {
 
   /// Opens color picker to select drawing color
   void _pickColor() async {
-    Color selectedColor = _selectedColor; // Temporary variable to hold selected color
+    Color selectedColor =
+        _selectedColor; // Temporary variable to hold selected color
 
     Color? pickedColor = await showDialog<Color>(
       context: context,
@@ -126,7 +122,8 @@ class _DrawingScreenState extends State<DrawingScreen> {
 
   /// Opens stroke width selector
   void _pickStrokeWidth() async {
-    double pickedWidth = _strokeWidth; // Temporary variable to hold selected width
+    double pickedWidth =
+        _strokeWidth; // Temporary variable to hold selected width
 
     double? selectedWidth = await showDialog<double>(
       context: context,
@@ -220,18 +217,19 @@ class _DrawingScreenState extends State<DrawingScreen> {
             Positioned.fill(
               child: GestureDetector(
                 onPanStart: (details) {
-                  RenderBox renderBox =
-                      _canvasKey.currentContext!.findRenderObject() as RenderBox;
+                  RenderBox renderBox = _canvasKey.currentContext!
+                      .findRenderObject() as RenderBox;
                   Offset localPosition =
                       renderBox.globalToLocal(details.globalPosition);
                   setState(() {
                     _currentStroke = [localPosition];
-                    _strokes = List.from(_strokes)..add(List.from(_currentStroke));
+                    _strokes = List.from(_strokes)
+                      ..add(List.from(_currentStroke));
                   });
                 },
                 onPanUpdate: (details) {
-                  RenderBox renderBox =
-                      _canvasKey.currentContext!.findRenderObject() as RenderBox;
+                  RenderBox renderBox = _canvasKey.currentContext!
+                      .findRenderObject() as RenderBox;
                   Offset localPosition =
                       renderBox.globalToLocal(details.globalPosition);
                   setState(() {
@@ -278,7 +276,8 @@ class _DrawingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (var stroke in strokes) {
-      if (stroke.length < 2) continue; // Need at least two points to draw a line
+      if (stroke.length < 2)
+        continue; // Need at least two points to draw a line
       Paint paint = Paint()
         ..color = strokeColor
         ..strokeWidth = strokeWidth

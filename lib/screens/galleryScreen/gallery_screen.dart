@@ -320,18 +320,25 @@ class _GalleryScreenState extends State<GalleryScreen>
   }
 
   void _showLocationCluster(String clusterKey, List<PhotoMetadata> photos) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => GalleryScreen(
-          images: photos.map((p) => XFile(p.path)).toList(),
-          onDelete: widget.onDelete,
-          onShare: widget.onShare, // Add this
-          onInfo: widget.onInfo, // Add this
-        ),
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => LocationDetailsScreen(
+        clusterKey: clusterKey,
+        photos: photos,
+        onDeletePhoto: (String photoPath) async {
+          final photo = photos.firstWhere((p) => p.path == photoPath);
+          final file = XFile(photoPath);
+          final imageWithDate = ImageWithDate(
+            file: file,
+            date: photo.dateTime,
+          );
+          await _deleteImage(imageWithDate);
+        },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _loadPreferences() async {
     // Load saved preferences like favorites, view settings, etc.

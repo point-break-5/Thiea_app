@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:thiea_app/models/photoMetadata.dart';
 import 'package:thiea_app/models/photo_cluster.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PlacesTab extends StatelessWidget {
   final List<PhotoMetadata> allPhotos;
@@ -171,3 +172,76 @@ class PlacesTab extends StatelessWidget {
     );
   }
 }
+
+
+class LocationDetailsScreen extends StatelessWidget {
+  final String clusterKey;
+  final List<PhotoMetadata> photos;
+  final Function(String) onDeletePhoto;
+
+  const LocationDetailsScreen({
+    Key? key,
+    required this.clusterKey,
+    required this.photos,
+    required this.onDeletePhoto,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: Text(clusterKey),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              '${photos.length} Photos',
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ),
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(2),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 2,
+                mainAxisSpacing: 2,
+              ),
+              itemCount: photos.length,
+              itemBuilder: (context, index) {
+                final photo = photos[index];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DisplayPictureScreen(
+                          imagePath: photo.path,
+                          onDelete: () {
+                            onDeletePhoto(photo.path);
+                            Navigator.pop(context);
+                          },
+                          onShare: () => Share.shareXFiles([XFile(photo.path)]),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Image.file(
+                    File(photo.path),
+                    fit: BoxFit.cover,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+

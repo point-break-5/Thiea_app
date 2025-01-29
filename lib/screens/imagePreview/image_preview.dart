@@ -7,9 +7,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
 import 'package:exif/exif.dart';
 import 'package:thiea_app/screens/imagePreview/drawing_editor.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ImageWithDate {
   final XFile file;
@@ -128,7 +128,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   Future<void> _applyFilter(String filterName) async {
     setState(() => _isLoading = true);
     try {
-      final bytes = await File(widget.image.file.path).readAsBytes();
+      final originalFile = File(widget.image.file.path);
+      final bytes = await originalFile.readAsBytes();
       final image = img.decodeImage(bytes);
 
       if (image == null) throw Exception('Failed to decode image');
@@ -148,14 +149,14 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
           throw Exception('Unknown filter: $filterName');
       }
 
+      // Store the edited image temporarily without saving it
       final tempDir = await getTemporaryDirectory();
-      final tempPath =
-          '${tempDir.path}/filtered_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final filteredFile = File(tempPath);
-      await filteredFile.writeAsBytes(img.encodeJpg(filteredImage));
+      final tempPath = '${tempDir.path}/filtered_image.jpg';
+      final tempFile = File(tempPath);
+      await tempFile.writeAsBytes(img.encodeJpg(filteredImage));
 
       setState(() {
-        _editedImage = filteredFile;
+        _editedImage = tempFile;
       });
     } catch (e) {
       debugPrint('Error applying filter: $e');
@@ -174,8 +175,11 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   Future<void> _saveEdits() async {
     if (_editedImage != null) {
       try {
+        final updatedFile = File(widget.image.file.path);
+        await updatedFile.writeAsBytes(await _editedImage!.readAsBytes());
+
         final newImage = ImageWithMetadata(
-          file: XFile(_editedImage!.path),
+          file: XFile(updatedFile.path),
           metadata: ImageMetadata(
             date: widget.image.metadata.date,
             location: widget.image.metadata.location,
@@ -189,6 +193,10 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Edits saved successfully!')),
         );
+
+        if (mounted) {
+          Navigator.pop(context);
+        }
       } catch (e) {
         debugPrint('Error saving edits: $e');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -353,6 +361,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
               backgroundDecoration: const BoxDecoration(color: Colors.black),
               heroAttributes:
                   PhotoViewHeroAttributes(tag: widget.image.file.path),
+              key: UniqueKey(), // Forces Flutter to reload the image
             ),
           ),
 
