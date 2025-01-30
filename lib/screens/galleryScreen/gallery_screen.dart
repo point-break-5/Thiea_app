@@ -59,7 +59,7 @@ class _GalleryScreenState extends State<GalleryScreen>
     scrollController.addListener(_handleScroll);
 
     // Load initial data
-    // _loadFaceClusters();
+    _loadFaceClusters();
     _loadData();
     _initializeGallery();
   }
@@ -680,266 +680,266 @@ class _GalleryScreenState extends State<GalleryScreen>
         backgroundColor: Colors.black,
         body: SafeArea(
           child: Stack(
-            children: [
-              NotificationListener<ScrollNotification>(
-                onNotification: (scrollNotification) {
-                  if (scrollNotification is ScrollUpdateNotification) {
-                    if (scrollNotification.scrollDelta != null) {
-                      setState(() {
-                        isScrollingUp = scrollNotification.scrollDelta! > 0;
-                      });
-                    }
-                  }
-                  return true;
-                },
-                child: Column(
-                  children: [
-                    // Add extra padding at the top to avoid obstruction
-                    const SizedBox(height: 45),
+        children: [
+          NotificationListener<ScrollNotification>(
+            onNotification: (scrollNotification) {
+          if (scrollNotification is ScrollUpdateNotification) {
+            if (scrollNotification.scrollDelta != null) {
+              setState(() {
+            isScrollingUp = scrollNotification.scrollDelta! > 0;
+              });
+            }
+          }
+          return true;
+            },
+            child: Column(
+          children: [
+            // Add extra padding at the top to avoid obstruction
+            const SizedBox(height: 45),
 
-                    // Search Bar with spacing
-                    if (isSearching)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                            top: 70), // Lower the search bar
-                        child: _buildSearchBar(
-                          this,
-                          onInitializeImages: _initializeImages,
-                          mounted: mounted,
-                          widget: widget,
-                        ),
-                      ),
-
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        physics: !isSelecting
-                            ? const AlwaysScrollableScrollPhysics()
-                            : const NeverScrollableScrollPhysics(),
-                        children: [
-                          Container(
-                            key: const PageStorageKey('photos'),
-                            child: GalleryPhotosTab(
-                              isSearching: isSearching,
-                              filteredImages: filteredImages,
-                              images: _loadedImages[currentCategory] ?? [],
-                              scrollController: scrollController,
-                              isLoadingMore: _isLoadingMore,
-                              loadMoreImages: _loadMoreImages,
-                              onShowImageDetails: (imageWithDate) =>
-                                  _showImageDetails(imageWithDate),
-                              years: _getYears(),
-                              months: _getMonths(),
-                              getFirstImageForYear: _getFirstImageForYear,
-                              getFirstImageForMonth: _getFirstImageForMonth,
-                              currentCategory: currentCategory,
-                              tabController: _pingController,
-                              isSelecting: isSelecting,
-                              onToggleSelect: _toggleSelect,
-                              selectedImages: selectedImages,
-                              getDateAlbum: _pingHelper,
-                            ),
-                          ),
-                          Container(
-                            key: const PageStorageKey('albums'),
-                            child: _buildAlbumsTab(
-                              this,
-                              onLoadMoreImages: _loadMoreImages,
-                            ),
-                          ),
-                          Container(
-                            key: const PageStorageKey('people'),
-                            padding: const EdgeInsets.only(top: 16),
-                            child: PeopleTab(
-                              allPhotos: _allPhotos,
-                              faceClusters: _faceClusters,
-                              isProcessingFaces: _isProcessingFaces,
-                              onShowPersonDetails: _showPersonDetailsScreen,
-                            ),
-                          ),
-                          Container(
-                            key: const PageStorageKey('places'),
-                            child: PlacesTab(
-                              allPhotos: _allPhotos,
-                              onShowLocationCluster: _showLocationCluster,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (isSelecting)
-                      Positioned(
-                        bottom:
-                            60, // Adjust as needed to appear above bottomNavigationBar
-                        left: 0,
-                        right: 0,
-                        child: _buildBottomBar(this,
-                            onShareSelectedImages: _shareSelectedImages,
-                            onDeleteSelectedImages: _deleteSelectedImages,
-                            onToggleFavorite: _toggleFavorite),
-                      ),
-                  ],
-                ),
+            // Search Bar with spacing
+            if (isSearching)
+              Padding(
+            padding: const EdgeInsets.only(
+                top: 70), // Lower the search bar
+            child: _buildSearchBar(
+              this,
+              onInitializeImages: _initializeImages,
+              mounted: mounted,
+              widget: widget,
+            ),
               ),
 
-              // Translucent Top Bar
-
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SizedBox(
-                  height: 85, // Restrict the height to match the top bar
-                  child: Stack(
-                    children: [
-                      // Backdrop blur for just the area of the bar
-                      ClipRect(
-                        // Ensures the blur is confined to the bar's area
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                          child: Container(
-                            color: Colors.black.withOpacity(
-                                0), // Transparent container for the blur effect
-                          ),
-                        ),
-                      ),
-                      // The actual bar content
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0),
-                          backgroundBlendMode: BlendMode.overlay,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              // Left side: Library and photo count
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    "Photos",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${widget.images.length} items',
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.7),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              // Action buttons
-                              Row(
-                                children: [
-                                  // Search Button
-                                  Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue,
-                                      borderRadius: BorderRadius.circular(19),
-                                    ),
-                                    child: IconButton(
-                                      padding: EdgeInsets.zero,
-                                      icon: const Icon(Icons.search, size: 20),
-                                      color: Colors.white,
-                                      onPressed: () {
-                                        if (mounted) {
-                                          setState(() {
-                                            isSearching = !isSearching;
-                                          });
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  // Select Button
-                                  Container(
-                                    width: 50,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[800],
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                    child: TextButton(
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: Size.zero,
-                                      ),
-                                      onPressed: () {
-                                        if (mounted) {
-                                          setState(() {
-                                            isSelecting = !isSelecting;
-                                            if (!isSelecting) {
-                                              selectedImages.clear();
-                                            }
-                                          });
-                                        }
-                                      },
-                                      child: const Text(
-                                        'Select',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  // Profile Button
-                                  Container(
-                                    width: 38,
-                                    height: 38,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[800],
-                                      borderRadius: BorderRadius.circular(19),
-                                    ),
-                                    child: ProfileButton(
-                                      photos: widget.images
-                                          .where((file) =>
-                                              file.path
-                                                  .toLowerCase()
-                                                  .endsWith('.jpg') ||
-                                              file.path
-                                                  .toLowerCase()
-                                                  .endsWith('.png'))
-                                          .length,
-                                      videos: widget.images
-                                          .where((file) =>
-                                              file.path
-                                                  .toLowerCase()
-                                                  .endsWith('.mp4') ||
-                                              file.path
-                                                  .toLowerCase()
-                                                  .endsWith('.mov'))
-                                          .length,
-                                      albums: widget.images
-                                          .map(
-                                              (file) => path.dirname(file.path))
-                                          .toSet()
-                                          .length, // Replace with your logic for albums
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+            Expanded(
+              child: TabBarView(
+            controller: _tabController,
+            physics: !isSelecting
+                ? const AlwaysScrollableScrollPhysics()
+                : const NeverScrollableScrollPhysics(),
+            children: [
+              Container(
+                key: const PageStorageKey('photos'),
+                child: GalleryPhotosTab(
+              isSearching: isSearching,
+              filteredImages: filteredImages,
+              images: _loadedImages[currentCategory] ?? [],
+              scrollController: scrollController,
+              isLoadingMore: _isLoadingMore,
+              loadMoreImages: _loadMoreImages,
+              onShowImageDetails: (imageWithDate) =>
+                  _showImageDetails(imageWithDate),
+              years: _getYears(),
+              months: _getMonths(),
+              getFirstImageForYear: _getFirstImageForYear,
+              getFirstImageForMonth: _getFirstImageForMonth,
+              currentCategory: currentCategory,
+              tabController: _pingController,
+              isSelecting: isSelecting,
+              onToggleSelect: _toggleSelect,
+              selectedImages: selectedImages,
+              getDateAlbum: _pingHelper,
+                ),
+              ),
+              Container(
+                key: const PageStorageKey('albums'),
+                child: _buildAlbumsTab(
+              this,
+              onLoadMoreImages: _loadMoreImages,
+                ),
+              ),
+              Container(
+                key: const PageStorageKey('people'),
+                padding: const EdgeInsets.only(top: 16),
+                child: PeopleTab(
+              allPhotos: _allPhotos,
+              faceClusters: _faceClusters,
+              isProcessingFaces: _isProcessingFaces,
+              onShowPersonDetails: _showPersonDetailsScreen,
+                ),
+              ),
+              Container(
+                key: const PageStorageKey('places'),
+                child: PlacesTab(
+              allPhotos: _allPhotos,
+              onShowLocationCluster: _showLocationCluster,
                 ),
               ),
             ],
+              ),
+            ),
+            if (isSelecting)
+              Positioned(
+            bottom:
+                60, // Adjust as needed to appear above bottomNavigationBar
+            left: 0,
+            right: 0,
+            child: _buildBottomBar(this,
+                onShareSelectedImages: _shareSelectedImages,
+                onDeleteSelectedImages: _deleteSelectedImages,
+                onToggleFavorite: _toggleFavorite),
+              ),
+          ],
+            ),
+          ),
+
+          // Translucent Top Bar
+
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SizedBox(
+          height: 85, // Restrict the height to match the top bar
+          child: Stack(
+            children: [
+              // Backdrop blur for just the area of the bar
+              ClipRect(
+            // Ensures the blur is confined to the bar's area
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: Container(
+                color: Colors.black.withOpacity(
+                0), // Transparent container for the blur effect
+              ),
+            ),
+              ),
+              // The actual bar content
+              Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0),
+              backgroundBlendMode: BlendMode.overlay,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+              // Left side: Library and photo count
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                "Photos",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                '${widget.images.length} items',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+                  ),
+                ],
+              ),
+
+              // Action buttons
+              Row(
+                children: [
+                  // Search Button
+                  Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(19),
+                ),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.search, size: 20),
+                  color: Colors.white,
+                  onPressed: () {
+                    if (mounted) {
+                  setState(() {
+                    isSearching = !isSearching;
+                  });
+                    }
+                  },
+                ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Select Button
+                  Container(
+                width: 50,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Colors.grey[800],
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                  ),
+                  onPressed: () {
+                    if (mounted) {
+                  setState(() {
+                    isSelecting = !isSelecting;
+                    if (!isSelecting) {
+                      selectedImages.clear();
+                    }
+                  });
+                    }
+                  },
+                  child: const Text(
+                    'Select',
+                    style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                    ),
+                  ),
+                ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Profile Button
+                  Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.grey[800],
+                  borderRadius: BorderRadius.circular(19),
+                ),
+                child: ProfileButton(
+                  photos: widget.images
+                  .where((file) =>
+                      file.path
+                      .toLowerCase()
+                      .endsWith('.jpg') ||
+                      file.path
+                      .toLowerCase()
+                      .endsWith('.png'))
+                  .length,
+                  videos: widget.images
+                  .where((file) =>
+                      file.path
+                      .toLowerCase()
+                      .endsWith('.mp4') ||
+                      file.path
+                      .toLowerCase()
+                      .endsWith('.mov'))
+                  .length,
+                  albums: widget.images
+                  .map(
+                      (file) => path.dirname(file.path))
+                  .toSet()
+                  .length, // Replace with your logic for albums
+                ),
+                  ),
+                ],
+              ),
+                ],
+              ),
+            ),
+              ),
+            ],
+          ),
+            ),
+          ),
+        ],
           ),
         ),
         bottomNavigationBar: TabBar(
@@ -949,67 +949,74 @@ class _GalleryScreenState extends State<GalleryScreen>
           unselectedLabelColor: Colors.grey[600],
           indicatorColor: Colors.transparent,
           labelStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
           ),
           tabs: viewTabs.map((tab) => Tab(text: tab)).toList(),
         ),
         // About the app
-        floatingActionButton: FloatingActionButton(
+        floatingActionButton: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: FloatingActionButton(
+          backgroundColor: Colors.white.withOpacity(0.2),
           onPressed: () {
             showDialog(
-              context: context,
-              builder: (_) {
-                return Dialog(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                      child: Container(
-                        color: Colors.white.withOpacity(0.2),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Thiea App',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Divider(color: Colors.white60),
-                            const SizedBox(height: 8),
-                            Column(
-                              children: [
-                                ...developers.map((dev) => Column(
-                                  children: [
-                                    buildInfoCard(
-                                      context,
-                                      imagePath: dev.imagePath,
-                                      name: dev.name,
-                                      githubLink: dev.githubLink, 
-                                      linkedinLink: dev.linkedinLink,
-                                    ),
-                                    const SizedBox(height: 16),
-                                  ],
-                                )).toList(),
-                              ],
-                            )
-                          ],
-                        ),
-                      ),
-                    ),
+          context: context,
+          builder: (_) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                color: Colors.white.withOpacity(0.2),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Thiea App',
+                  style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 8),
+                const Divider(color: Colors.white60),
+                const SizedBox(height: 8),
+                Column(
+                  children: [
+                ...developers.map((dev) => Column(
+                  children: [
+                    buildInfoCard(
+                  context,
+                  imagePath: dev.imagePath,
+                  name: dev.name,
+                  githubLink: dev.githubLink, 
+                  linkedinLink: dev.linkedinLink,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                )).toList(),
+                  ],
+                )
+              ],
+                ),
+              ),
+            ),
+              ),
+            );
+          },
             );
           },
           child: const Icon(Icons.info),
+        ),
+          ),
         ),
       ),
     );

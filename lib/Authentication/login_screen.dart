@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../auth_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../screens/sharedAlbums/shared_albums_page.dart';
 
 int number_of_photos = 0;
 int number_of_videos = 0;
@@ -579,9 +580,17 @@ class ProfileModal extends StatelessWidget {
 
                 // Logout Button
                 ElevatedButton.icon(
-                  onPressed: onLogout,
-                  icon: const Icon(Icons.people, size: 18, color: Colors.white,),
-                  label: const Text('Shared Albums', style: TextStyle(color: Colors.white),),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: true,
+                      builder: (context) => SharedLibraryScreen(
+                        userId: user.uid,  // Pass the Firebase UID here
+                      )
+                    );
+                  },
+                  icon: const Icon(Icons.people, size: 18, color: Colors.white),
+                  label: const Text('Shared Albums', style: TextStyle(color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     minimumSize: const Size(double.infinity, 45),
