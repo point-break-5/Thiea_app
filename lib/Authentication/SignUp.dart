@@ -1,4 +1,4 @@
-import '../CommonHeader.dart';
+import 'CommonHeader.dart';
 
 class Signup extends StatefulWidget {
   const Signup({super.key});

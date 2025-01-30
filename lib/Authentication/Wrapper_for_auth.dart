@@ -1,4 +1,4 @@
-import '../CommonHeader.dart';
+import 'CommonHeader.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
