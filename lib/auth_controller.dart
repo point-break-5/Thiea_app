@@ -1,18 +1,11 @@
-import 'package:firebase_auth/firebase_auth.dart' as firebase;  // Add prefix
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';  // Import the UUID package
 
 class AuthController extends GetxController {
-  // Firebase authentication instance
-  final firebase.FirebaseAuth _auth = firebase.FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
-  // Update the User type with the firebase prefix
-  final Rx<firebase.User?> user = Rx<firebase.User?>(null);
-
-  // Supabase client instance
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final Rx<User?> user = Rx<User?>(null);
 
   @override
   void onInit() {
@@ -21,59 +14,23 @@ class AuthController extends GetxController {
     ever(user, _initialScreen);
   }
 
-  // Update parameter type with firebase prefix
-  _initialScreen(firebase.User? user) {
+  _initialScreen(User? user) {
     if (user == null) {
+      // If user is not logged in, navigate to auth screen
       Get.offAllNamed('/auth');
     } else {
+      // If user is logged in, navigate to home screen
       Get.offAllNamed('/home');
     }
   }
 
-  Future<void> _createSupabaseProfile({
-    required String userId,
-    required String email,
-    String? fullName,
-    String? avatarUrl,
-  }) async {
-    // Create a UUID instance
-    final uuid = Uuid();
-
-    // Generate a new UUID v4 (random UUID)
-    final profileId = uuid.v4();
+  Future<void> signUp(String email, String password) async {
     try {
-      await _supabase.from('profiles').insert({
-        'id':profileId,
-        'email': email,
-        'full_name': fullName,
-        'avatar_url': avatarUrl,
-        'created_at': DateTime.now().toIso8601String(),
-        'firebase_uid': userId,
-      });
-    } catch (e) {
-      print('Error creating Supabase profile: $e');
-      await _auth.currentUser?.delete();
-      throw 'Failed to complete signup process. Please try again.';
-    }
-  }
-
-  Future<void> signUp(String email, String password, {String? fullName}) async {
-    try {
-      // Update the UserCredential type with firebase prefix
-      final firebase.UserCredential userCredential =
       await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      if (userCredential.user != null) {
-        await _createSupabaseProfile(
-          userId: userCredential.user!.uid,
-          email: email,
-          fullName: fullName,
-        );
-      }
-    } on firebase.FirebaseAuthException catch (e) {  // Update exception type
+    } on FirebaseAuthException catch (e) {
       String message;
       switch (e.code) {
         case 'weak-password':
@@ -89,8 +46,6 @@ class AuthController extends GetxController {
           message = e.message ?? 'An unknown error occurred.';
       }
       throw message;
-    } catch (e) {
-      throw 'Failed to complete signup: ${e.toString()}';
     }
   }
 
@@ -100,7 +55,7 @@ class AuthController extends GetxController {
         email: email,
         password: password,
       );
-    } on firebase.FirebaseAuthException catch (e) {  // Update exception type
+    } on FirebaseAuthException catch (e) {
       String message;
       switch (e.code) {
         case 'user-not-found':
@@ -122,32 +77,19 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<firebase.UserCredential?> signInWithGoogle() async {  // Update return type
+  Future<UserCredential?> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
       final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
-      final firebase.OAuthCredential credential =   // Update credential type
-      firebase.GoogleAuthProvider.credential(
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final firebase.UserCredential userCredential =   // Update type
-      await _auth.signInWithCredential(credential);
-
-      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
-        await _createSupabaseProfile(
-          userId: userCredential.user!.uid,
-          email: userCredential.user!.email!,
-          fullName: userCredential.user!.displayName,
-          avatarUrl: userCredential.user!.photoURL,
-        );
-      }
-
-      return userCredential;
+      return await _auth.signInWithCredential(credential);
     } catch (e) {
       throw 'Failed to sign in with Google: ${e.toString()}';
     }

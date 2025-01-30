@@ -19,7 +19,6 @@ import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_face_rec
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_places.dart';
 import 'package:thiea_app/screens/galleryScreen/galleryFeatures/gallery_photos.dart';
 import 'package:thiea_app/Authentication/login_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../aboutScreen/about_screen.dart';
 
 part 'gallery_screen_constants.dart';
@@ -59,7 +58,7 @@ class _GalleryScreenState extends State<GalleryScreen>
     scrollController.addListener(_handleScroll);
 
     // Load initial data
-    _loadFaceClusters();
+    // _loadFaceClusters();
     _loadData();
     _initializeGallery();
   }
@@ -430,9 +429,7 @@ class _GalleryScreenState extends State<GalleryScreen>
             ImagePreviewScreen(
           image: imageWithMetadata,
           favoriteImages: favoriteImages,
-          onImageUpdated: (updatedImage) {
-            _handleImageUpdate(updatedImage);
-          },
+          onImageUpdated: _handleImageUpdate,
           onFavoriteToggle: () => _toggleFavorite(imageWithDate.file.path),
           onDelete: () async {
             final confirmed = await showDialog<bool>(
@@ -490,15 +487,13 @@ class _GalleryScreenState extends State<GalleryScreen>
 
   void _handleImageUpdate(ImageWithMetadata updatedImage) async {
     try {
-      // Update the image in your state
       setState(() {
-        // Update in loaded images
+        // Update the image in _loadedImages
         for (var category in _loadedImages.keys) {
           final index = _loadedImages[category]?.indexWhere(
             (img) => img.file.path == updatedImage.file.path,
           );
           if (index != null && index != -1) {
-            final oldImage = _loadedImages[category]![index];
             _loadedImages[category]![index] = ImageWithDate(
               file: updatedImage.file,
               date: updatedImage.metadata.date,
@@ -506,7 +501,7 @@ class _GalleryScreenState extends State<GalleryScreen>
           }
         }
 
-        // Update in categorized images
+        // Update the image in categorizedImages
         for (var category in categorizedImages.keys) {
           final index = categorizedImages[category]?.indexWhere(
             (img) => img.file.path == updatedImage.file.path,
@@ -520,7 +515,7 @@ class _GalleryScreenState extends State<GalleryScreen>
         }
       });
 
-      // Save metadata changes
+      // Persist changes
       await _saveMetadataChanges(updatedImage);
     } catch (e) {
       print('Error handling image update: $e');

@@ -472,7 +472,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                   icon: const Icon(Icons.menu),
                   color: Colors.white,
                   onPressed: () {
-                    showModalBottomSheet(// ..................
+                    showModalBottomSheet(
                       context: context,
                       builder: (BuildContext context) {
                         return SafeArea(
@@ -496,27 +496,24 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                                             title: const Text('Home Screen'),
                                             onTap: () {
                                               Navigator.pop(context);
-                                            _setWallpaper(
-                                                WallpaperManager
-                                                    .HOME_SCREEN);
+                                              _setWallpaper(
+                                                  WallpaperManager.HOME_SCREEN);
                                             },
                                           ),
                                           ListTile(
                                             title: const Text('Lock Screen'),
                                             onTap: () {
                                               Navigator.pop(context);
-                                            _setWallpaper(
-                                                WallpaperManager
-                                                    .LOCK_SCREEN);
+                                              _setWallpaper(
+                                                  WallpaperManager.LOCK_SCREEN);
                                             },
                                           ),
                                           ListTile(
                                             title: const Text('Both'),
                                             onTap: () {
                                               Navigator.pop(context);
-                                            _setWallpaper(
-                                                WallpaperManager
-                                                    .BOTH_SCREEN);
+                                              _setWallpaper(
+                                                  WallpaperManager.BOTH_SCREEN);
                                             },
                                           ),
                                         ],
@@ -676,7 +673,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                           ),
                         );
                       },
-                    );//..............................
+                    );
                   },
                 )
               ],
@@ -811,212 +808,3 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
     super.dispose();
   }
 }
-
-
-
-
-// showModalBottomSheet(// ..................
-//                       context: context,
-//                       builder: (BuildContext context) {
-//                         return SafeArea(
-//                           child: Column(
-//                             mainAxisSize: MainAxisSize.min,
-//                             children: <Widget>[
-//                               ListTile(
-//                                 leading: const Icon(Icons.wallpaper),
-//                                 title: const Text('Set as Wallpaper'),
-//                                 onTap: () {
-//                                   Navigator.pop(context);
-//                                   showDialog(
-//                                     context: context,
-//                                     builder: (BuildContext context) =>
-//                                         AlertDialog(
-//                                       title: const Text('Set as Wallpaper'),
-//                                       content: Column(
-//                                         mainAxisSize: MainAxisSize.min,
-//                                         children: [
-//                                           ListTile(
-//                                             title: const Text('Home Screen'),
-//                                             onTap: () {
-//                                               Navigator.pop(context);
-//                                             _setWallpaper(
-//                                                 WallpaperManager
-//                                                     .HOME_SCREEN);
-//                                             },
-//                                           ),
-//                                           ListTile(
-//                                             title: const Text('Lock Screen'),
-//                                             onTap: () {
-//                                               Navigator.pop(context);
-//                                             _setWallpaper(
-//                                                 WallpaperManager
-//                                                     .LOCK_SCREEN);
-//                                             },
-//                                           ),
-//                                           ListTile(
-//                                             title: const Text('Both'),
-//                                             onTap: () {
-//                                               Navigator.pop(context);
-//                                             _setWallpaper(
-//                                                 WallpaperManager
-//                                                     .BOTH_SCREEN);
-//                                             },
-//                                           ),
-//                                         ],
-//                                       ),
-//                                     ),
-//                                   );
-//                                 },
-//                               ),
-//                               ListTile(
-//                                 leading: const Icon(Icons.info),
-//                                 title: const Text('Details'),
-//                                 onTap: () {
-//                                   Navigator.pop(context);
-//                                   showDialog(
-//                                     context: context,
-//                                     builder: (context) => AlertDialog(
-//                                       title: const Text(
-//                                         'Image Details',
-//                                         style: TextStyle(
-//                                             fontWeight: FontWeight.bold),
-//                                       ),
-//                                       content: SingleChildScrollView(
-//                                         child: Column(
-//                                           crossAxisAlignment:
-//                                               CrossAxisAlignment.start,
-//                                           children: [
-//                                             // Date Section
-//                                             Text(
-//                                               '📅 Date: ${DateFormat('MMM d, yyyy').format(widget.image.metadata.date)}',
-//                                               style: const TextStyle(
-//                                                   fontSize: 16,
-//                                                   fontWeight: FontWeight.w600),
-//                                             ),
-//                                             const SizedBox(height: 8),
-
-//                                             // Location Section
-//                                             if (widget
-//                                                     .image.metadata.location !=
-//                                                 null)
-//                                               Column(
-//                                                 crossAxisAlignment:
-//                                                     CrossAxisAlignment.start,
-//                                                 children: [
-//                                                   const Divider(),
-//                                                   const Padding(
-//                                                     padding:
-//                                                         EdgeInsets.symmetric(
-//                                                             vertical: 8.0),
-//                                                     child: Text(
-//                                                       '📍 Location Information',
-//                                                       style: TextStyle(
-//                                                           fontSize: 18,
-//                                                           fontWeight:
-//                                                               FontWeight.bold),
-//                                                     ),
-//                                                   ),
-//                                                   if (widget.image.metadata
-//                                                           .location!
-//                                                           .contains(',') &&
-//                                                       widget.image.metadata
-//                                                               .subLocation ==
-//                                                           "PlaceHolder")
-//                                                     Text(
-//                                                       'Location: ${widget.image.metadata.placeName ?? 'Unknown Location'}\nLatitude: ${widget.image.metadata.location!.split(',')[0].trim()}\nLongitude: ${widget.image.metadata.location!.split(',')[1].trim()}',
-//                                                       style: const TextStyle(
-//                                                         fontSize: 16,
-//                                                         fontWeight:
-//                                                             FontWeight.w400,
-//                                                         color: Colors.grey,
-//                                                       ),
-//                                                     ),
-
-//                                                   // Sublocality Check
-//                                                   if (widget.image.metadata
-//                                                           .subLocation !=
-//                                                       "PlaceHolder")
-//                                                     Padding(
-//                                                       padding:
-//                                                           const EdgeInsets.only(
-//                                                               top: 8.0),
-//                                                       child: Text(
-//                                                         'Location: ${widget.image.metadata.placeName ?? 'Unknown Location'}\nSub-Locality: ${widget.image.metadata.subLocation!.split(',')[2]}\nPostal Code: ${widget.image.metadata.subLocation!.split(',')[3]}\nStreet: ${widget.image.metadata.subLocation!.split(',')[1]}\nBuilding: ${widget.image.metadata.subLocation!.split(',')[0]}\nLatitude: ${widget.image.metadata.location!.split(',')[0].trim()}\nLongitude: ${widget.image.metadata.location!.split(',')[1].trim()}',
-//                                                         style: const TextStyle(
-//                                                           fontSize: 16,
-//                                                           fontWeight:
-//                                                               FontWeight.w400,
-//                                                           color: Colors.grey,
-//                                                         ),
-//                                                       ),
-//                                                     ),
-//                                                 ],
-//                                               )
-//                                             else
-//                                               const Text(
-//                                                 '📍 Location: Not Available',
-//                                                 style: TextStyle(
-//                                                   fontSize: 16,
-//                                                   fontWeight: FontWeight.w600,
-//                                                 ),
-//                                               ),
-
-//                                             // EXIF Data Section
-//                                             if (_exifData != null) ...[
-//                                               const Divider(),
-//                                               const Padding(
-//                                                 padding: EdgeInsets.symmetric(
-//                                                     vertical: 8.0),
-//                                                 child: Text(
-//                                                   'EXIF Data',
-//                                                   style: TextStyle(
-//                                                       fontSize: 18,
-//                                                       fontWeight:
-//                                                           FontWeight.bold),
-//                                                 ),
-//                                               ),
-//                                               Wrap(
-//                                                 spacing: 8,
-//                                                 runSpacing: 8,
-//                                                 children: _exifData!.entries
-//                                                     .map(
-//                                                       (entry) => Chip(
-//                                                         label: Text(
-//                                                           '${entry.key}: ${entry.value}',
-//                                                           style:
-//                                                               const TextStyle(
-//                                                                   fontSize: 14),
-//                                                         ),
-//                                                         backgroundColor:
-//                                                             const Color
-//                                                                 .fromARGB(255,
-//                                                                 50, 75, 84),
-//                                                       ),
-//                                                     )
-//                                                     .toList(),
-//                                               ),
-//                                             ],
-//                                           ],
-//                                         ),
-//                                       ),
-//                                       actions: [
-//                                         TextButton(
-//                                           onPressed: () =>
-//                                               Navigator.pop(context),
-//                                           child: const Text(
-//                                             'Close',
-//                                             style: TextStyle(
-//                                                 color: Colors.blue,
-//                                                 fontWeight: FontWeight.bold),
-//                                           ),
-//                                         ),
-//                                       ],
-//                                     ),
-//                                   );
-//                                 },
-//                               ),
-//                             ],
-//                           ),
-//                         );
-//                       },
-//                     );//..............................

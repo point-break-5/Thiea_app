@@ -70,13 +70,9 @@ dependencies:
   toggle_switch: ^1.4.0
   animated_toggle_switch: ^0.8.4
   url_launcher: 
-  gal: ^2.3.1
-  chewie: ^1.10.0
-  video_player: ^2.9.2
-  supabase_flutter: ^2.8.3
-  timeago: ^3.2.2
-  device_info: ^2.0.3
-  device_info_plus: ^11.2.2
+  supabase_flutter: 
+  timeago:
+  shared_preferences:
 
 dev_dependencies:
   flutter_test:
