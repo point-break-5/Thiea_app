@@ -3,12 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../auth_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
- 
+import '../screens/sharedAlbums/shared_albums_page.dart';
+
+int number_of_photos = 0;
+int number_of_videos = 0;
+int number_of_albums = 0;
+
 class ProfileButton extends StatelessWidget {
   final AuthController authController = Get.find<AuthController>();
- 
-  ProfileButton({Key? key}) : super(key: key);
- 
+
+
+  int photos;
+  int videos;
+  int albums;
+
+  ProfileButton({super.key, this.photos = 0, this.videos = 0, this.albums = 0}) {
+    number_of_photos = photos;
+    number_of_videos = videos;
+    number_of_albums = albums;
+  }
+
+
   void _showModal(BuildContext context) {
     final user = authController.user.value;
     if (user != null) {
@@ -33,7 +48,7 @@ class ProfileButton extends StatelessWidget {
       );
     }
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return IconButton(
@@ -53,28 +68,28 @@ class ProfileButton extends StatelessWidget {
     );
   }
 }
- 
+
 class AuthScreen extends StatefulWidget {
   const AuthScreen({Key? key}) : super(key: key);
- 
+
   @override
   State<AuthScreen> createState() => _AuthScreenState();
 }
- 
+
 class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authController = Get.find<AuthController>();
   bool _isLogin = true;
   bool _isLoading = false;
- 
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
- 
+
   Future<void> _handleAuth() async {
     if (_emailController.text.trim().isEmpty ||
         _passwordController.text.trim().isEmpty) {
@@ -86,9 +101,9 @@ class _AuthScreenState extends State<AuthScreen> {
       );
       return;
     }
- 
+
     setState(() => _isLoading = true);
- 
+
     try {
       if (_isLogin) {
         await _authController.login(
@@ -118,10 +133,10 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     }
   }
- 
+
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
- 
+
     try {
       final userCred = await _authController.signInWithGoogle();
       if (userCred != null && mounted) {
@@ -141,7 +156,7 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     }
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -208,9 +223,9 @@ class _AuthScreenState extends State<AuthScreen> {
       ),
     );
   }
- 
+
   // ... keep existing _buildAuthFields and _buildAuthButton methods ...
- 
+
   // Widget _buildGoogleSignInButton() {
   //   return ElevatedButton(
   //     onPressed: _isLoading ? null : _handleGoogleSignIn,
@@ -248,7 +263,7 @@ class _AuthScreenState extends State<AuthScreen> {
   //           ),
   //   );
   // }
- 
+
   // ... keep existing _buildToggleButton method ...
   Widget _buildAuthFields() {
     return Column(
@@ -303,7 +318,7 @@ class _AuthScreenState extends State<AuthScreen> {
       ],
     );
   }
- 
+
   Widget _buildAuthButton() {
     return ElevatedButton(
       onPressed: _isLoading ? null : _handleAuth,
@@ -335,7 +350,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
     );
   }
- 
+
   Widget _buildGoogleSignInButton() {
     return Container(
       decoration: BoxDecoration(
@@ -392,7 +407,7 @@ class _AuthScreenState extends State<AuthScreen> {
       ),
     );
   }
- 
+
   Widget _buildToggleButton() {
     return Column(
       children: [
@@ -480,17 +495,17 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 }
- 
+
 class ProfileModal extends StatelessWidget {
   final User user;
   final VoidCallback onLogout;
- 
+
   const ProfileModal({
     Key? key,
     required this.user,
     required this.onLogout,
   }) : super(key: key);
- 
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -530,7 +545,7 @@ class ProfileModal extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
- 
+
                 // User Name
                 Text(
                   user.displayName ?? 'Gallery User',
@@ -541,7 +556,7 @@ class ProfileModal extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
- 
+
                 // Email
                 Text(
                   user.email ?? '',
@@ -551,23 +566,46 @@ class ProfileModal extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
- 
+
                 // Stats Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildStatItem('Photos', '3,145'),
-                    _buildStatItem('Videos', '86'),
-                    _buildStatItem('Albums', '12'),
+                    _buildStatItem('Photos', '$number_of_photos'),
+                    _buildStatItem('Videos', '$number_of_videos'),
+                    _buildStatItem('Albums', '$number_of_albums'),
                   ],
                 ),
                 const SizedBox(height: 24),
- 
+
+                // Logout Button
+                ElevatedButton.icon(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: true,
+                      builder: (context) => SharedLibraryScreen(
+                        userId: user.uid,  // Pass the Firebase UID here
+                      )
+                    );
+                  },
+                  icon: const Icon(Icons.people, size: 18, color: Colors.white),
+                  label: const Text('Shared Albums', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    minimumSize: const Size(double.infinity, 45),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
                 // Logout Button
                 ElevatedButton.icon(
                   onPressed: onLogout,
-                  icon: const Icon(Icons.logout, size: 18),
-                  label: const Text('Logout'),
+                  icon: const Icon(Icons.logout, size: 18, color: Colors.white,),
+                  label: const Text('Logout', style: TextStyle(color: Colors.white),),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red.withOpacity(0.7),
                     minimumSize: const Size(double.infinity, 45),
@@ -583,7 +621,7 @@ class ProfileModal extends StatelessWidget {
       ),
     );
   }
- 
+
   Widget _buildDefaultAvatar() {
     return Container(
       color: Colors.grey.shade300,
@@ -594,7 +632,7 @@ class ProfileModal extends StatelessWidget {
       ),
     );
   }
- 
+
   Widget _buildStatItem(String label, String value) {
     return Column(
       children: [
