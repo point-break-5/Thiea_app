@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:animated_toggle_switch/animated_toggle_switch.dart';
 import 'package:animations/animations.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:thiea_app/screens/aboutScreen/about_screen.dart';
 import 'package:thiea_app/screens/galleryScreen/gallery_screen.dart' as gallery;
 import 'cameraFeatures/grid_painter.dart';
 import 'package:intl/intl.dart';
@@ -144,26 +146,32 @@ class _CameraScreenState extends State<CameraScreen>
                               : const Text('Video',
                                   style: TextStyle(color: Colors.white)),
                         ),
-                        if (isVideoRecording) Row(
+                        if (isVideoRecording)
+                          Row(
                             children: [
-                            const SizedBox(width: 20),
-                            StreamBuilder<int>(
-                              stream: Stream.periodic(const Duration(seconds: 1), (count) => count),
-                              builder: (context, snapshot) {
-                                final startTime = _recordingStartTime ?? DateTime.now();
-                                final duration = DateTime.now().difference(startTime);
-                                final displayDuration = Duration(seconds: duration.inSeconds);
-                                return Text(
-                                  '${displayDuration.inMinutes.toString().padLeft(2, '0')}:${(displayDuration.inSeconds % 60).toString().padLeft(2, '0')}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
+                              const SizedBox(width: 20),
+                              StreamBuilder<int>(
+                                stream: Stream.periodic(
+                                    const Duration(seconds: 1),
+                                    (count) => count),
+                                builder: (context, snapshot) {
+                                  final startTime =
+                                      _recordingStartTime ?? DateTime.now();
+                                  final duration =
+                                      DateTime.now().difference(startTime);
+                                  final displayDuration =
+                                      Duration(seconds: duration.inSeconds);
+                                  return Text(
+                                    '${displayDuration.inMinutes.toString().padLeft(2, '0')}:${(displayDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                     SizedBox(
@@ -184,6 +192,7 @@ class _CameraScreenState extends State<CameraScreen>
           ],
         ),
       ),
+      
     );
   }
 
@@ -781,7 +790,6 @@ class _CameraScreenState extends State<CameraScreen>
       final String dirPath = await _localPath;
       final String filePath = '$dirPath/VID_$timestamp.mp4';
       videoFile?.saveTo(filePath);
-
     } catch (e) {
       print('Error stopping video recording: $e');
     }

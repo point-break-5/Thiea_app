@@ -186,7 +186,7 @@ Future<ImageMetadata?> _createMetadata(ImageWithDate imageWithDate) async {
             : null, 
         exifData: exifMap, 
         caption: null,
-        placeName : existingMetadata.placeName ?? 'PlaceHolder',
+        placeName : existingMetadata.placeName ?? 'Dhaka, Bangladesh',
         subLocation: existingMetadata.subLocality ?? 'PlaceHolder',
       );
       print(existingMetadata.subLocality);

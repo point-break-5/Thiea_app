@@ -10,7 +10,6 @@ import 'package:image/image.dart' as img;
 import 'package:exif/exif.dart';
 import 'package:thiea_app/screens/imagePreview/drawing_editor.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_wallpaper_manager/flutter_wallpaper_manager.dart';
 
 class ImageWithDate {
   final XFile file;
@@ -494,27 +493,15 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                                         children: [
                                           ListTile(
                                             title: const Text('Home Screen'),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              _setWallpaper(
-                                                  WallpaperManager.HOME_SCREEN);
-                                            },
+                                            onTap: () {},
                                           ),
                                           ListTile(
                                             title: const Text('Lock Screen'),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              _setWallpaper(
-                                                  WallpaperManager.LOCK_SCREEN);
-                                            },
+                                            onTap: () {},
                                           ),
                                           ListTile(
                                             title: const Text('Both'),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              _setWallpaper(
-                                                  WallpaperManager.BOTH_SCREEN);
-                                            },
+                                            onTap: () {},
                                           ),
                                         ],
                                       ),
@@ -682,23 +669,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         ),
       ),
     );
-  }
-
-  Future<void> _setWallpaper(int wallpaperType) async {
-    try {
-      await WallpaperManager.setWallpaperFromFile(widget.image.file.path, wallpaperType);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Wallpaper set successfully')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to set wallpaper: $e')),
-        );
-      }
-    }
   }
 
   Widget _buildBottomBar() {
