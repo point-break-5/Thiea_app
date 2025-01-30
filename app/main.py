@@ -118,7 +118,7 @@ async def upload_photos(
         for file in files:
             if file and allowed_file(file.filename):
                 # Generate unique filename
-                id = "a4c661ae-7e74-4902-ad7a-2c03de3781f5"
+                id = "5be7e8dc-dd94-45a9-9552-1e04b65ca12e"
                 photo_id = uuid.uuid4()
                 ext = file.filename.rsplit(".", 1)[1].lower()
                 storage_path = f"photos/{id}/{str(photo_id)}.{ext}"
@@ -138,7 +138,7 @@ async def upload_photos(
                 background_tasks.add_task(
                     extract_faces_task.delay,
                     file_path,
-                    "a4c661ae-7e74-4902-ad7a-2c03de3781f5",
+                    "5be7e8dc-dd94-45a9-9552-1e04b65ca12e",
                     str(photo_id),
                 )
 
