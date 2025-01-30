@@ -1,4 +1,4 @@
-# untitled
+# Theia App
 
 A new Flutter project.
 
