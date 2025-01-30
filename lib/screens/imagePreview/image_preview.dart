@@ -7,9 +7,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
 import 'package:exif/exif.dart';
 import 'package:thiea_app/screens/imagePreview/drawing_editor.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_wallpaper_manager/flutter_wallpaper_manager.dart';
 
 class ImageWithDate {
@@ -129,7 +129,8 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   Future<void> _applyFilter(String filterName) async {
     setState(() => _isLoading = true);
     try {
-      final bytes = await File(widget.image.file.path).readAsBytes();
+      final originalFile = File(widget.image.file.path);
+      final bytes = await originalFile.readAsBytes();
       final image = img.decodeImage(bytes);
 
       if (image == null) throw Exception('Failed to decode image');
@@ -149,14 +150,14 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
           throw Exception('Unknown filter: $filterName');
       }
 
+      // Store the edited image temporarily without saving it
       final tempDir = await getTemporaryDirectory();
-      final tempPath =
-          '${tempDir.path}/filtered_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final filteredFile = File(tempPath);
-      await filteredFile.writeAsBytes(img.encodeJpg(filteredImage));
+      final tempPath = '${tempDir.path}/filtered_image.jpg';
+      final tempFile = File(tempPath);
+      await tempFile.writeAsBytes(img.encodeJpg(filteredImage));
 
       setState(() {
-        _editedImage = filteredFile;
+        _editedImage = tempFile;
       });
     } catch (e) {
       debugPrint('Error applying filter: $e');
@@ -175,8 +176,11 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
   Future<void> _saveEdits() async {
     if (_editedImage != null) {
       try {
-        final newImage = ImageWithMetadata(
-          file: XFile(_editedImage!.path),
+        final updatedFile = File(widget.image.file.path);
+        await updatedFile.writeAsBytes(await _editedImage!.readAsBytes());
+
+        final updatedImage = ImageWithMetadata(
+          file: XFile(updatedFile.path),
           metadata: ImageMetadata(
             date: widget.image.metadata.date,
             location: widget.image.metadata.location,
@@ -185,11 +189,19 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
           ),
         );
 
-        widget.onImageUpdated(newImage);
+        // Notify the parent about the updated image
+        widget.onImageUpdated(updatedImage);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Edits saved successfully!')),
         );
+
+        // Delay before closing the screen
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            Navigator.pop(context, updatedImage); // Return updated image
+          }
+        });
       } catch (e) {
         debugPrint('Error saving edits: $e');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -204,6 +216,13 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No changes to save.')),
       );
+
+      // Return to parent without an update
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          Navigator.pop(context, null);
+        }
+      });
     }
   }
 
@@ -354,6 +373,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
               backgroundDecoration: const BoxDecoration(color: Colors.black),
               heroAttributes:
                   PhotoViewHeroAttributes(tag: widget.image.file.path),
+              key: UniqueKey(), // Forces Flutter to reload the image
             ),
           ),
 
@@ -452,7 +472,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                   icon: const Icon(Icons.menu),
                   color: Colors.white,
                   onPressed: () {
-                    showModalBottomSheet(
+                    showModalBottomSheet(// ..................
                       context: context,
                       builder: (BuildContext context) {
                         return SafeArea(
@@ -656,7 +676,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                           ),
                         );
                       },
-                    );
+                    );//..............................
                   },
                 )
               ],
@@ -791,3 +811,212 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
     super.dispose();
   }
 }
+
+
+
+
+// showModalBottomSheet(// ..................
+//                       context: context,
+//                       builder: (BuildContext context) {
+//                         return SafeArea(
+//                           child: Column(
+//                             mainAxisSize: MainAxisSize.min,
+//                             children: <Widget>[
+//                               ListTile(
+//                                 leading: const Icon(Icons.wallpaper),
+//                                 title: const Text('Set as Wallpaper'),
+//                                 onTap: () {
+//                                   Navigator.pop(context);
+//                                   showDialog(
+//                                     context: context,
+//                                     builder: (BuildContext context) =>
+//                                         AlertDialog(
+//                                       title: const Text('Set as Wallpaper'),
+//                                       content: Column(
+//                                         mainAxisSize: MainAxisSize.min,
+//                                         children: [
+//                                           ListTile(
+//                                             title: const Text('Home Screen'),
+//                                             onTap: () {
+//                                               Navigator.pop(context);
+//                                             _setWallpaper(
+//                                                 WallpaperManager
+//                                                     .HOME_SCREEN);
+//                                             },
+//                                           ),
+//                                           ListTile(
+//                                             title: const Text('Lock Screen'),
+//                                             onTap: () {
+//                                               Navigator.pop(context);
+//                                             _setWallpaper(
+//                                                 WallpaperManager
+//                                                     .LOCK_SCREEN);
+//                                             },
+//                                           ),
+//                                           ListTile(
+//                                             title: const Text('Both'),
+//                                             onTap: () {
+//                                               Navigator.pop(context);
+//                                             _setWallpaper(
+//                                                 WallpaperManager
+//                                                     .BOTH_SCREEN);
+//                                             },
+//                                           ),
+//                                         ],
+//                                       ),
+//                                     ),
+//                                   );
+//                                 },
+//                               ),
+//                               ListTile(
+//                                 leading: const Icon(Icons.info),
+//                                 title: const Text('Details'),
+//                                 onTap: () {
+//                                   Navigator.pop(context);
+//                                   showDialog(
+//                                     context: context,
+//                                     builder: (context) => AlertDialog(
+//                                       title: const Text(
+//                                         'Image Details',
+//                                         style: TextStyle(
+//                                             fontWeight: FontWeight.bold),
+//                                       ),
+//                                       content: SingleChildScrollView(
+//                                         child: Column(
+//                                           crossAxisAlignment:
+//                                               CrossAxisAlignment.start,
+//                                           children: [
+//                                             // Date Section
+//                                             Text(
+//                                               '📅 Date: ${DateFormat('MMM d, yyyy').format(widget.image.metadata.date)}',
+//                                               style: const TextStyle(
+//                                                   fontSize: 16,
+//                                                   fontWeight: FontWeight.w600),
+//                                             ),
+//                                             const SizedBox(height: 8),
+
+//                                             // Location Section
+//                                             if (widget
+//                                                     .image.metadata.location !=
+//                                                 null)
+//                                               Column(
+//                                                 crossAxisAlignment:
+//                                                     CrossAxisAlignment.start,
+//                                                 children: [
+//                                                   const Divider(),
+//                                                   const Padding(
+//                                                     padding:
+//                                                         EdgeInsets.symmetric(
+//                                                             vertical: 8.0),
+//                                                     child: Text(
+//                                                       '📍 Location Information',
+//                                                       style: TextStyle(
+//                                                           fontSize: 18,
+//                                                           fontWeight:
+//                                                               FontWeight.bold),
+//                                                     ),
+//                                                   ),
+//                                                   if (widget.image.metadata
+//                                                           .location!
+//                                                           .contains(',') &&
+//                                                       widget.image.metadata
+//                                                               .subLocation ==
+//                                                           "PlaceHolder")
+//                                                     Text(
+//                                                       'Location: ${widget.image.metadata.placeName ?? 'Unknown Location'}\nLatitude: ${widget.image.metadata.location!.split(',')[0].trim()}\nLongitude: ${widget.image.metadata.location!.split(',')[1].trim()}',
+//                                                       style: const TextStyle(
+//                                                         fontSize: 16,
+//                                                         fontWeight:
+//                                                             FontWeight.w400,
+//                                                         color: Colors.grey,
+//                                                       ),
+//                                                     ),
+
+//                                                   // Sublocality Check
+//                                                   if (widget.image.metadata
+//                                                           .subLocation !=
+//                                                       "PlaceHolder")
+//                                                     Padding(
+//                                                       padding:
+//                                                           const EdgeInsets.only(
+//                                                               top: 8.0),
+//                                                       child: Text(
+//                                                         'Location: ${widget.image.metadata.placeName ?? 'Unknown Location'}\nSub-Locality: ${widget.image.metadata.subLocation!.split(',')[2]}\nPostal Code: ${widget.image.metadata.subLocation!.split(',')[3]}\nStreet: ${widget.image.metadata.subLocation!.split(',')[1]}\nBuilding: ${widget.image.metadata.subLocation!.split(',')[0]}\nLatitude: ${widget.image.metadata.location!.split(',')[0].trim()}\nLongitude: ${widget.image.metadata.location!.split(',')[1].trim()}',
+//                                                         style: const TextStyle(
+//                                                           fontSize: 16,
+//                                                           fontWeight:
+//                                                               FontWeight.w400,
+//                                                           color: Colors.grey,
+//                                                         ),
+//                                                       ),
+//                                                     ),
+//                                                 ],
+//                                               )
+//                                             else
+//                                               const Text(
+//                                                 '📍 Location: Not Available',
+//                                                 style: TextStyle(
+//                                                   fontSize: 16,
+//                                                   fontWeight: FontWeight.w600,
+//                                                 ),
+//                                               ),
+
+//                                             // EXIF Data Section
+//                                             if (_exifData != null) ...[
+//                                               const Divider(),
+//                                               const Padding(
+//                                                 padding: EdgeInsets.symmetric(
+//                                                     vertical: 8.0),
+//                                                 child: Text(
+//                                                   'EXIF Data',
+//                                                   style: TextStyle(
+//                                                       fontSize: 18,
+//                                                       fontWeight:
+//                                                           FontWeight.bold),
+//                                                 ),
+//                                               ),
+//                                               Wrap(
+//                                                 spacing: 8,
+//                                                 runSpacing: 8,
+//                                                 children: _exifData!.entries
+//                                                     .map(
+//                                                       (entry) => Chip(
+//                                                         label: Text(
+//                                                           '${entry.key}: ${entry.value}',
+//                                                           style:
+//                                                               const TextStyle(
+//                                                                   fontSize: 14),
+//                                                         ),
+//                                                         backgroundColor:
+//                                                             const Color
+//                                                                 .fromARGB(255,
+//                                                                 50, 75, 84),
+//                                                       ),
+//                                                     )
+//                                                     .toList(),
+//                                               ),
+//                                             ],
+//                                           ],
+//                                         ),
+//                                       ),
+//                                       actions: [
+//                                         TextButton(
+//                                           onPressed: () =>
+//                                               Navigator.pop(context),
+//                                           child: const Text(
+//                                             'Close',
+//                                             style: TextStyle(
+//                                                 color: Colors.blue,
+//                                                 fontWeight: FontWeight.bold),
+//                                           ),
+//                                         ),
+//                                       ],
+//                                     ),
+//                                   );
+//                                 },
+//                               ),
+//                             ],
+//                           ),
+//                         );
+//                       },
+//                     );//..............................
