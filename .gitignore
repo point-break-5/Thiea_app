@@ -65,6 +65,7 @@ poetry.toml
 
 # Temporary files
 *.tmp
+*.pkl
 
 # Docker-specific ignores
 # Avoid including sensitive files and build-related directories
@@ -100,3 +101,4 @@ logs/
 
 # Pictures
 *.jpg
+*.png

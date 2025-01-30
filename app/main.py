@@ -17,6 +17,7 @@ from fastapi import (
     HTTPException,
     Query,
     UploadFile,
+    WebSocket,
 )
 from fastapi.responses import JSONResponse
 
@@ -39,6 +40,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = FastAPI(title="Photo Sharing Backend")
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+
+FIXED_USER_ID = "a4c661ae-7e74-4902-ad7a-2c03de3781f5"
 
 
 class ShareStatus(str, Enum):
@@ -63,6 +66,12 @@ class ShareResponse(BaseModel):
     library_id: UUID4
     status: ShareStatus
     shared_photos: List[PhotoResponse]
+
+
+class UploadResponse(BaseModel):
+    photo_id: UUID4
+    public_url: str
+    status: str
 
 
 async def get_current_user(authorization: str = Header(...)):
@@ -130,6 +139,7 @@ async def upload_photos(
                     extract_faces_task.delay,
                     file_path,
                     "a4c661ae-7e74-4902-ad7a-2c03de3781f5",
+                    str(photo_id),
                 )
 
                 # Insert into photos table
@@ -295,6 +305,217 @@ async def update_fcm_token(fcm_token: str = Form(...), user=Depends(get_current_
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/")
+async def root():
+    return {"message": "Photo Sharing API is running"}
+
+
+@app.post("/api/upload-and-share", response_model=List[UploadResponse])
+async def upload_and_share(
+    files: List[UploadFile] = File(...), receiver_email: str = Form(...)
+):
+    uploaded_photos = []
+
+    try:
+        receiver_user_data = {
+            "id": str(uuid.uuid4()),
+            "email": receiver_email,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+
+        existing_user = (
+            supabase.table("profiles")
+            .select("id")
+            .eq("email", receiver_email)
+            .execute()
+        )
+
+        if existing_user.data:
+            receiver_id = existing_user.data[0]["id"]
+        else:
+            new_user = supabase.table("profiles").insert(receiver_user_data).execute()
+            receiver_id = new_user.data[0]["id"]
+
+        print(f"Receiver ID: {receiver_id}")
+
+        for file in files:
+            try:
+                ext = file.filename.rsplit(".", 1)[1].lower()
+                photo_id = uuid.uuid4()
+                storage_path = f"photos/{photo_id}.{ext}"
+
+                print(f"Processing file: {file.filename}")
+
+                content = await file.read()
+
+                print("Uploading to storage...")
+                storage_response = supabase.storage.from_("photos").upload(
+                    path=storage_path,
+                    file=content,
+                    file_options={"content-type": file.content_type},
+                )
+                print(f"Storage response: {storage_response}")
+
+                public_url = supabase.storage.from_("photos").get_public_url(
+                    storage_path
+                )
+                print(f"Public URL: {public_url}")
+
+                photo_data = {
+                    "id": str(photo_id),
+                    "filename": file.filename,
+                    "storage_path": storage_path,
+                    "public_url": public_url,
+                    "owner_id": FIXED_USER_ID,
+                    "created_at": datetime.utcnow().isoformat(),
+                }
+
+                print("Inserting into photos table...")
+                photo_result = supabase.table("photos").insert(photo_data).execute()
+                print(f"Photo insert result: {photo_result.data}")
+
+                uploaded_photos.append(
+                    UploadResponse(
+                        photo_id=photo_id, public_url=public_url, status="uploaded"
+                    )
+                )
+
+            except Exception as e:
+                print(f"Error processing file {file.filename}: {str(e)}")
+                print(f"Full error details: {e.__class__.__name__}")
+                continue
+
+        if uploaded_photos:
+            try:
+                library_data = {
+                    "id": str(uuid.uuid4()),
+                    "sender_id": FIXED_USER_ID,
+                    "receiver_id": receiver_id,
+                    "status": "pending",
+                    "created_at": datetime.utcnow().isoformat(),
+                }
+
+                print("Creating shared library entry...")
+                library_result = (
+                    supabase.table("shared_libraries").insert(library_data).execute()
+                )
+                print(f"Library creation result: {library_result.data}")
+
+                library_id = library_result.data[0]["id"]
+
+                print("Creating shared photos entries...")
+                for photo in uploaded_photos:
+                    shared_photo_data = {
+                        "id": str(uuid.uuid4()),
+                        "library_id": library_id,
+                        "photo_id": str(photo.photo_id),
+                        "created_at": datetime.utcnow().isoformat(),
+                    }
+
+                    shared_photo_result = (
+                        supabase.table("shared_photos")
+                        .insert(shared_photo_data)
+                        .execute()
+                    )
+                    print(f"Shared photo insert result: {shared_photo_result.data}")
+
+            except Exception as e:
+                print(f"Error creating library: {str(e)}")
+                print(f"Full error details: {e.__class__.__name__}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        return uploaded_photos
+
+    except Exception as e:
+        print(f"Upload error: {str(e)}")
+        print(f"Full error details: {e.__class__.__name__}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.websocket("/ws/library-updates/{user_id}")
+async def library_updates_websocket(websocket: WebSocket, user_id: str):
+    try:
+        await websocket.accept()
+        print(f"WebSocket connection accepted for user: {user_id}")
+
+        subscription = (
+            supabase.table("shared_libraries")
+            .on("INSERT", lambda payload: handle_library_update(payload, websocket))
+            .subscribe()
+        )
+
+        print(f"Subscribed to shared libraries updates for user: {user_id}")
+
+        while True:
+            try:
+                data = await websocket.receive_text()
+                if data == "ping":
+                    await websocket.send_text("pong")
+            except Exception as e:
+                print(f"Error in WebSocket loop: {str(e)}")
+                break
+
+    except Exception as e:
+        print(f"WebSocket error: {str(e)}")
+    finally:
+        if "subscription" in locals():
+            try:
+                await subscription.unsubscribe()
+            except Exception as e:
+                print(f"Error unsubscribing: {str(e)}")
+        try:
+            await websocket.close()
+        except Exception as e:
+            print(f"Error closing websocket: {str(e)}")
+        print(f"WebSocket connection closed for user: {user_id}")
+
+
+async def handle_library_update(payload, websocket: WebSocket):
+    try:
+        library_id = payload["new"]["id"]
+        print(f"Handling library update for library: {library_id}")
+
+        photos_result = (
+            supabase.table("shared_photos")
+            .select("*")
+            .eq("library_id", library_id)
+            .execute()
+        )
+
+        await websocket.send_json(
+            {
+                "type": "library_update",
+                "library_id": library_id,
+                "photos": photos_result.data,
+            }
+        )
+
+        print(f"Sent library update for library: {library_id}")
+
+    except Exception as e:
+        print(f"Error handling library update: {str(e)}")
+
+
+@app.get("/health")
+async def health_check():
+    try:
+        test_query = supabase.table("photos").select("count", count="exact").execute()
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
+
+
+if __name__ == "__main__":
+    print("Starting Photo Sharing API...")
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
 if __name__ == "__main__":
