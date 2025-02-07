@@ -62,6 +62,6 @@ This project was developed as part of the **CSE 2216 - Application Development L
 - **Sadek Hossain Asif** (15)  
 - **Anirban Roy Sourov** (32)  
 
-📽️ **Demo Video:** [Watch Here](https://youtu.be/cqLra_9JPLM?si=iZBsvTuzzrzhs2M5)  
+📽️ **Demo Video:** [CSE2216: Theia App - Video Demo](https://youtu.be/cqLra_9JPLM?si=iZBsvTuzzrzhs2M5)  
 
 Feel free to contribute, report issues, or suggest improvements! 🚀
