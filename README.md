@@ -46,11 +46,9 @@ flutter run
 ``` 
 
 ### **Run the Backend**  
-Ensure Python 3.9+ is installed, then:  
-```bash
-pip install -r backend/requirements.txt
-uvicorn backend.main:app --reload
-```
+Ensure Python 3.9+ is installed,
+then clone branch Sadik,
+and follow the instructions provided in README.
 
 ---
 
